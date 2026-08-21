@@ -21,6 +21,8 @@ EVENT_TIMESTAMP_FIELDS = {
     "messages": ("created_at",),
     "completions": ("completed_at", "requested_at"),
     "model_inferences": ("response_at", "request_at"),
+    "feedback": ("created_at",),
+    "errors": ("occurred_at",),
 }
 RECORD_TIMESTAMP_FIELDS = {
     "users": ("signup_at", "ingested_at"),
@@ -29,6 +31,8 @@ RECORD_TIMESTAMP_FIELDS = {
     "messages": ("created_at", "ingested_at"),
     "completions": ("requested_at", "completed_at", "ingested_at"),
     "model_inferences": ("request_at", "response_at", "ingested_at"),
+    "feedback": ("created_at", "ingested_at"),
+    "errors": ("occurred_at", "ingested_at"),
 }
 EVENT_ID_FIELDS = {
     "users": "user_id",
@@ -37,6 +41,8 @@ EVENT_ID_FIELDS = {
     "messages": "message_id",
     "completions": "completion_id",
     "model_inferences": "inference_id",
+    "feedback": "feedback_id",
+    "errors": "error_id",
 }
 S3_REPLACEMENT_KEYS = {
     "users": "raw/users/dt=2026-08-20/2437a9a9-b719-4b22-8e77-1fa844e6e475.json",

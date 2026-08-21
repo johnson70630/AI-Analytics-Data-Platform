@@ -38,6 +38,12 @@ from .inference_data import (
     validate_local_inference_data,
     validate_s3_inference_data,
 )
+from .quality_events import (
+    generate_quality_events_locally,
+    print_quality_summary,
+    validate_local_quality_events,
+    validate_s3_quality_events,
+)
 from .reference_data import (
     generate_devices,
     generate_models,
@@ -81,7 +87,13 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--dataset",
-        choices=("reference", "users", "activity", "inference"),
+        choices=(
+            "reference",
+            "users",
+            "activity",
+            "inference",
+            "feedback_errors",
+        ),
         default="reference",
         help="Dataset group to generate (default: reference).",
     )
@@ -282,6 +294,54 @@ def main() -> None:
     args = parse_args()
     config = load_config(require_s3=args.output == "s3")
     fake = initialize_randomness(args.seed)
+    if args.dataset == "feedback_errors":
+        if args.output == "local":
+            generate_quality_events_locally(
+                args.partition_date,
+                DEFAULT_LOCAL_ROOT,
+            )
+            summary = validate_local_quality_events(
+                args.partition_date,
+                DEFAULT_LOCAL_ROOT,
+            )
+            print("\nSerialized local Milestone 6 validation: PASS")
+            print_quality_summary(summary)
+        else:
+            local_summary = validate_local_quality_events(
+                args.partition_date,
+                DEFAULT_LOCAL_ROOT,
+            )
+            print("Validated local Milestone 6 data before S3 upload: PASS")
+            for entity_name in ("feedback", "errors"):
+                upload_local_partitioned_files(
+                    entity_name,
+                    DEFAULT_LOCAL_ROOT,
+                    bucket=config["s3_bucket"],
+                    region=config["aws_default_region"] or DEFAULT_AWS_REGION,
+                    aws_access_key_id=config["aws_access_key_id"],
+                    aws_secret_access_key=config["aws_secret_access_key"],
+                )
+            client = boto3.client(
+                "s3",
+                region_name=config["aws_default_region"] or DEFAULT_AWS_REGION,
+                aws_access_key_id=config["aws_access_key_id"],
+                aws_secret_access_key=config["aws_secret_access_key"],
+            )
+            s3_summary = validate_s3_quality_events(
+                client,
+                config["s3_bucket"],
+                args.partition_date,
+                DEFAULT_LOCAL_ROOT,
+            )
+            if (
+                s3_summary["feedback"] != local_summary["feedback"]
+                or s3_summary["errors"] != local_summary["errors"]
+            ):
+                raise ValueError("S3 Milestone 6 totals do not match local data")
+            print("\nSerialized S3 Milestone 6 validation: PASS")
+            print_quality_summary(s3_summary)
+        return
+
     if args.dataset == "inference":
         if args.output == "local":
             generate_inference_data_locally(
