@@ -18,6 +18,15 @@ from .reference_data import (
     generate_subscription_plans,
 )
 from .utils import add_random_delay, generate_uuid, initialize_randomness
+from .user_data import (
+    ACCOUNT_STATUSES,
+    PRIMARY_COUNTRIES,
+    SIGNUP_SOURCES,
+    UPDATE_FIELDS,
+    generate_user_updates,
+    generate_users,
+    summarize_user_data,
+)
 from .writers import write_records_locally, write_records_to_s3
 
 
@@ -40,7 +49,13 @@ def generate_test_records(fake: Faker, partition_date: date) -> list[dict]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate Bronze-layer operational reference datasets."
+        description="Generate Bronze-layer operational source datasets."
+    )
+    parser.add_argument(
+        "--dataset",
+        choices=("reference", "users"),
+        default="reference",
+        help="Dataset group to generate (default: reference).",
     )
     parser.add_argument(
         "--output",
@@ -64,19 +79,66 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _print_distribution(title: str, values: tuple, counts: dict) -> None:
+    print(f"\n{title}:")
+    for value in values:
+        print(f"{value if value is not None else 'NULL'}: {counts[value]}")
+
+
+def _generate_user_datasets(fake: Faker, partition_date: date) -> tuple:
+    users = generate_users(fake, partition_date)
+    updates = generate_user_updates(users, fake, partition_date)
+    summary = summarize_user_data(users, updates)
+
+    print(f"Users generated: {len(users):,}")
+    print(f"User updates generated: {len(updates):,}")
+    _print_distribution(
+        "Country distribution",
+        PRIMARY_COUNTRIES,
+        summary["country_distribution"],
+    )
+    _print_distribution(
+        "Account status distribution",
+        ACCOUNT_STATUSES,
+        summary["account_status_distribution"],
+    )
+    _print_distribution(
+        "Signup source distribution",
+        (*SIGNUP_SOURCES, None),
+        summary["signup_source_distribution"],
+    )
+    _print_distribution(
+        "Update type distribution",
+        UPDATE_FIELDS,
+        summary["update_type_distribution"],
+    )
+    print("\nUsers with:")
+    print(f"0 updates: {summary['users_with_0_updates']}")
+    print(f"1 update: {summary['users_with_1_update']}")
+    print(f"2+ updates: {summary['users_with_2_plus_updates']}")
+
+    return (
+        ("users", "users", users),
+        ("user_updates", "user updates", updates),
+    )
+
+
 def main() -> None:
     args = parse_args()
     config = load_config(require_s3=args.output == "s3")
-    initialize_randomness(args.seed)
-    datasets = (
-        ("models", "models", generate_models()),
-        ("devices", "devices", generate_devices()),
-        (
-            "subscription_plans",
-            "subscription plans",
-            generate_subscription_plans(),
-        ),
-    )
+    fake = initialize_randomness(args.seed)
+    if args.dataset == "reference":
+        datasets = (
+            ("models", "models", generate_models()),
+            ("devices", "devices", generate_devices()),
+            (
+                "subscription_plans",
+                "subscription plans",
+                generate_subscription_plans(),
+            ),
+        )
+    else:
+        datasets = _generate_user_datasets(fake, args.partition_date)
 
     for entity_name, display_name, records in datasets:
         print(f"Generated {len(records)} {display_name}")
