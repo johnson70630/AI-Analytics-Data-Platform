@@ -10,6 +10,8 @@ from .activity_data import (
     generate_messages,
     load_existing_user_data,
     summarize_activity,
+    validate_conversations,
+    validate_messages,
 )
 from .config import (
     DEFAULT_AWS_REGION,
@@ -17,6 +19,16 @@ from .config import (
     DEFAULT_OUTPUT_MODE,
     DEFAULT_RANDOM_SEED,
     load_config,
+)
+from .ingestion import (
+    S3_REPLACEMENT_KEYS,
+    add_ingestion_timestamps,
+    ingestion_report,
+    load_local_partitioned_records,
+    remove_local_event_outputs,
+    validate_ingestion_records,
+    write_partitioned_records_locally,
+    write_partitioned_records_to_s3,
 )
 from .reference_data import (
     generate_devices,
@@ -32,6 +44,8 @@ from .user_data import (
     generate_user_updates,
     generate_users,
     summarize_user_data,
+    validate_user_updates,
+    validate_users,
 )
 from .writers import write_records_locally, write_records_to_s3
 
@@ -144,9 +158,37 @@ def _generate_activity_datasets(partition_date: date) -> tuple:
         partition_date,
     )
     summary = summarize_activity(users, conversations, messages, devices)
+    generation_end = datetime.combine(
+        partition_date,
+        datetime.max.time().replace(microsecond=0),
+        timezone.utc,
+    )
+    datasets_by_entity = {
+        "users": add_ingestion_timestamps(users, "signup_at", generation_end),
+        "user_updates": add_ingestion_timestamps(
+            user_updates,
+            "updated_at",
+            generation_end,
+        ),
+        "conversations": add_ingestion_timestamps(
+            conversations,
+            "created_at",
+            generation_end,
+        ),
+        "messages": add_ingestion_timestamps(
+            messages,
+            "created_at",
+            generation_end,
+        ),
+    }
+    for entity_name, records in datasets_by_entity.items():
+        validate_ingestion_records(entity_name, records, generation_end)
+    delay_report = ingestion_report(datasets_by_entity)
 
-    print(f"Loaded users from {source_paths[0]}")
-    print(f"Loaded user updates from {source_paths[1]}")
+    print(f"Loaded users from {len(source_paths[0])} source file(s)")
+    print(f"Loaded user updates from {len(source_paths[1])} source file(s)")
+    print(f"Users preserved: {len(users):,}")
+    print(f"User updates preserved: {len(user_updates):,}")
     print(f"Users available: {summary['users_available']:,}")
     print("\nUsers with:")
     for bucket, count in summary["user_conversation_buckets"].items():
@@ -157,6 +199,7 @@ def _generate_activity_datasets(partition_date: date) -> tuple:
     print(f"average per conversation: {summary['average_messages']:.2f}")
     print(f"median per conversation: {summary['median_messages']:.1f}")
     print(f"p95 per conversation: {summary['p95_messages']}")
+    print(f"p99 per conversation: {summary['p99_messages']}")
     print(f"maximum: {summary['max_messages']}")
     print(
         "\nConversations spanning >1 calendar day: "
@@ -166,9 +209,64 @@ def _generate_activity_datasets(partition_date: date) -> tuple:
     for platform in ("WEB", "IOS", "ANDROID", "NULL"):
         print(f"{platform}: {summary['platform_distribution'][platform]:,}")
 
-    return (
-        ("conversations", "conversations", conversations),
-        ("messages", "messages", messages),
+    print("\nIngestion delays (seconds):")
+    for metric in ("median", "p95", "p99", "maximum"):
+        print(f"{metric}: {delay_report[metric]:,.0f}")
+    print("\nDaily ingestion partitions:")
+    for entity_name, partition_summary in delay_report["partitions"].items():
+        print(
+            f"{entity_name}: {partition_summary['count']} "
+            f"({partition_summary['earliest']} to {partition_summary['latest']})"
+        )
+
+    return tuple(
+        (entity_name, entity_name.replace("_", " "), records)
+        for entity_name, records in datasets_by_entity.items()
+    )
+
+
+def _load_partitioned_activity_datasets(partition_date: date) -> tuple:
+    generation_end = datetime.combine(
+        partition_date,
+        datetime.max.time().replace(microsecond=0),
+        timezone.utc,
+    )
+    loaded = {}
+    for entity_name in ("users", "user_updates", "conversations", "messages"):
+        records, physical_dates, paths = load_local_partitioned_records(
+            entity_name,
+            DEFAULT_LOCAL_ROOT,
+        )
+        validate_ingestion_records(
+            entity_name,
+            records,
+            generation_end,
+            physical_dates,
+        )
+        loaded[entity_name] = records
+        print(
+            f"Reloaded {len(records):,} {entity_name} records from "
+            f"{len(paths)} validated daily files"
+        )
+    validate_users(loaded["users"], partition_date)
+    validate_user_updates(loaded["users"], loaded["user_updates"])
+    validate_conversations(
+        loaded["users"],
+        loaded["user_updates"],
+        loaded["conversations"],
+        partition_date,
+    )
+    validate_messages(
+        loaded["users"],
+        loaded["user_updates"],
+        loaded["conversations"],
+        loaded["messages"],
+        generate_devices(),
+        partition_date,
+    )
+    return tuple(
+        (entity_name, entity_name.replace("_", " "), records)
+        for entity_name, records in loaded.items()
     )
 
 
@@ -189,7 +287,38 @@ def main() -> None:
     elif args.dataset == "users":
         datasets = _generate_user_datasets(fake, args.partition_date)
     else:
-        datasets = _generate_activity_datasets(args.partition_date)
+        datasets = (
+            _load_partitioned_activity_datasets(args.partition_date)
+            if args.output == "s3"
+            else _generate_activity_datasets(args.partition_date)
+        )
+
+    if args.dataset == "activity":
+        entity_names = tuple(entity_name for entity_name, _, _ in datasets)
+        if args.output == "local":
+            removed = remove_local_event_outputs(
+                entity_names,
+                DEFAULT_LOCAL_ROOT,
+            )
+            print(f"Removed {len(removed)} obsolete local event files")
+            for entity_name, _, records in datasets:
+                write_partitioned_records_locally(
+                    records,
+                    entity_name,
+                    DEFAULT_LOCAL_ROOT,
+                )
+        else:
+            for entity_name, _, records in datasets:
+                write_partitioned_records_to_s3(
+                    records,
+                    entity_name,
+                    bucket=config["s3_bucket"],
+                    region=config["aws_default_region"] or DEFAULT_AWS_REGION,
+                    aws_access_key_id=config["aws_access_key_id"],
+                    aws_secret_access_key=config["aws_secret_access_key"],
+                    replacement_key=S3_REPLACEMENT_KEYS[entity_name],
+                )
+        return
 
     for entity_name, display_name, records in datasets:
         print(f"Generated {len(records)} {display_name}")

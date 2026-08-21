@@ -58,6 +58,8 @@ def write_records_locally(
     entity_name: str,
     partition_date: date | str,
     output_root: str | Path = "data",
+    *,
+    verbose: bool = True,
 ) -> Path | None:
     """Write records to a local path matching the S3 key layout."""
     materialized_records = list(records)
@@ -79,7 +81,8 @@ def write_records_locally(
             f"to {output_path}: {exc}"
         ) from exc
 
-    print(f"Wrote {len(materialized_records)} records locally to {output_path}")
+    if verbose:
+        print(f"Wrote {len(materialized_records)} records locally to {output_path}")
     return output_path
 
 
@@ -92,6 +95,9 @@ def write_records_to_s3(
     region: str,
     aws_access_key_id: str,
     aws_secret_access_key: str,
+    client: Any = None,
+    verbose: bool = True,
+    object_key: str | None = None,
 ) -> str | None:
     """Serialize records as NDJSON and upload them to the configured S3 bucket."""
     materialized_records = list(records)
@@ -99,14 +105,15 @@ def write_records_to_s3(
         print(f"No {entity_name} records to write; skipping S3 output.")
         return None
 
-    key = build_object_key(entity_name, partition_date)
+    key = object_key or build_object_key(entity_name, partition_date)
     try:
-        client = boto3.client(
-            "s3",
-            region_name=region,
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-        )
+        if client is None:
+            client = boto3.client(
+                "s3",
+                region_name=region,
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+            )
         client.put_object(
             Bucket=bucket,
             Key=key,
@@ -119,8 +126,9 @@ def write_records_to_s3(
             f"to s3://{bucket}/{key}: {exc}"
         ) from exc
 
-    print(
-        f"Wrote {len(materialized_records)} records "
-        f"to bucket {bucket} with key {key}"
-    )
+    if verbose:
+        print(
+            f"Wrote {len(materialized_records)} records "
+            f"to bucket {bucket} with key {key}"
+        )
     return key

@@ -56,6 +56,7 @@ USER_UPDATE_FIELDS = {
     "new_value",
     "updated_at",
 }
+INGESTION_FIELD = "ingested_at"
 WAREHOUSE_FIELDS = {
     "user_key",
     "date_key",
@@ -264,7 +265,10 @@ def validate_users(users: list[dict[str, Any]], partition_date: date) -> None:
     end_at = _generation_end(partition_date)
     start_at = end_at - timedelta(days=365)
     for user in users:
-        if set(user) != USER_FIELDS or WAREHOUSE_FIELDS.intersection(user):
+        if (
+            set(user) not in (USER_FIELDS, USER_FIELDS | {INGESTION_FIELD})
+            or WAREHOUSE_FIELDS.intersection(user)
+        ):
             raise ValueError(
                 f"users validation failed: invalid schema for {user.get('user_id')}"
             )
@@ -395,7 +399,11 @@ def validate_user_updates(
     update_ids = set()
     updates_by_user: dict[str, list[dict[str, Any]]] = {}
     for update in updates:
-        if set(update) != USER_UPDATE_FIELDS or WAREHOUSE_FIELDS.intersection(update):
+        if (
+            set(update)
+            not in (USER_UPDATE_FIELDS, USER_UPDATE_FIELDS | {INGESTION_FIELD})
+            or WAREHOUSE_FIELDS.intersection(update)
+        ):
             raise ValueError(
                 "user_updates validation failed: invalid schema for "
                 f"{update.get('update_id')}"
@@ -426,7 +434,7 @@ def validate_user_updates(
         user = users_by_id[user_id]
         state = {field: user[field] for field in UPDATE_FIELDS}
         previous_timestamp = user["signup_at"]
-        for update in user_updates:
+        for update in sorted(user_updates, key=lambda row: row["updated_at"]):
             updated_at = update.get("updated_at")
             if (
                 not isinstance(updated_at, datetime)

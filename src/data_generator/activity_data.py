@@ -13,10 +13,10 @@ from .user_data import validate_user_updates, validate_users
 from .utils import generate_uuid
 
 
-CONVERSATION_MIN_COUNT = 45_000
-CONVERSATION_MAX_COUNT = 55_000
-MESSAGE_MIN_COUNT = 250_000
-MESSAGE_MAX_COUNT = 350_000
+CONVERSATION_MIN_COUNT = 100_000
+CONVERSATION_MAX_COUNT = 130_000
+MESSAGE_MIN_COUNT = 1_000_000
+MESSAGE_MAX_COUNT = 1_200_000
 
 CONVERSATION_FIELDS = {"conversation_id", "user_id", "created_at"}
 MESSAGE_FIELDS = {
@@ -34,9 +34,10 @@ WAREHOUSE_FIELDS = {
     "conversation_key",
     "message_key",
 }
+INGESTION_FIELD = "ingested_at"
 
 ACTIVITY_SEGMENTS = ("INACTIVE", "LOW", "NORMAL", "ACTIVE", "POWER")
-ACTIVITY_SEGMENT_WEIGHTS = (22, 33, 34, 9, 2)
+ACTIVITY_SEGMENT_WEIGHTS = (18, 28, 37, 14, 3)
 HOUR_WEIGHTS = (
     1, 1, 1, 1, 1, 2, 4, 7, 9, 10, 10, 9,
     8, 8, 9, 10, 10, 11, 12, 12, 10, 8, 5, 3,
@@ -94,23 +95,22 @@ def _parse_utc(value: str) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
-def _latest_source_path(
+def _source_paths(
     entity_name: str,
     partition_date: date,
     source_root: str | Path,
-) -> Path:
-    source_directory = (
-        Path(source_root)
-        / "raw"
-        / entity_name
-        / f"dt={partition_date.isoformat()}"
-    )
-    candidates = list(source_directory.glob("*.json"))
+) -> list[Path]:
+    entity_root = Path(source_root) / "raw" / entity_name
+    candidates = sorted(entity_root.glob("dt=*/*.json"))
     if not candidates:
         raise RuntimeError(
-            f"No existing {entity_name} source file found in {source_directory}"
+            f"No existing {entity_name} source files found in {entity_root}"
         )
-    return max(candidates, key=lambda path: path.stat().st_mtime_ns)
+    partition_dates = {path.parent.name for path in candidates}
+    if len(partition_dates) == 1:
+        newest = max(candidates, key=lambda path: path.stat().st_mtime_ns)
+        return [newest]
+    return candidates
 
 
 def _read_ndjson(path: Path) -> list[dict[str, Any]]:
@@ -127,19 +127,27 @@ def _read_ndjson(path: Path) -> list[dict[str, Any]]:
 def load_existing_user_data(
     partition_date: date,
     source_root: str | Path = "data",
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], tuple[Path, Path]]:
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    tuple[list[Path], list[Path]],
+]:
     """Load and validate the existing Milestone 3 user source extracts."""
-    users_path = _latest_source_path("users", partition_date, source_root)
-    updates_path = _latest_source_path("user_updates", partition_date, source_root)
-    users = _read_ndjson(users_path)
-    updates = _read_ndjson(updates_path)
+    users_paths = _source_paths("users", partition_date, source_root)
+    updates_paths = _source_paths("user_updates", partition_date, source_root)
+    users = [record for path in users_paths for record in _read_ndjson(path)]
+    updates = [record for path in updates_paths for record in _read_ndjson(path)]
     for user in users:
         user["signup_at"] = _parse_utc(user["signup_at"])
+        if "ingested_at" in user:
+            user["ingested_at"] = _parse_utc(user["ingested_at"])
     for update in updates:
         update["updated_at"] = _parse_utc(update["updated_at"])
+        if "ingested_at" in update:
+            update["ingested_at"] = _parse_utc(update["ingested_at"])
     validate_users(users, partition_date)
     validate_user_updates(users, updates)
-    return users, updates, (users_path, updates_path)
+    return users, updates, (users_paths, updates_paths)
 
 
 def _terminal_closed_times(
@@ -169,17 +177,12 @@ def _conversation_count() -> int:
     if segment == "INACTIVE":
         return 0
     if segment == "LOW":
-        return random.choices((1, 2), weights=(65, 35), k=1)[0]
+        return random.choices((1, 2, 3), weights=(50, 35, 15), k=1)[0]
     if segment == "NORMAL":
-        return random.choices(
-            tuple(range(3, 11)),
-            weights=(15, 18, 18, 16, 13, 10, 6, 4),
-            k=1,
-        )[0]
+        return random.randint(4, 14)
     if segment == "ACTIVE":
-        values = tuple(range(11, 31))
-        return random.choices(values, weights=tuple(range(30, 10, -1)), k=1)[0]
-    return random.randint(31, 90)
+        return random.randint(19, 45)
+    return random.randint(61, 140)
 
 
 def _activity_timestamp(start_at: datetime, end_at: datetime) -> datetime:
@@ -240,21 +243,23 @@ def generate_conversations(
 
 def _message_count() -> int:
     length_group = random.choices(
-        ("SHORT", "TYPICAL", "LONG", "VERY_LONG"),
-        weights=(38, 44, 16, 2),
+        ("SHORT", "TYPICAL", "ENGAGED", "LONG", "VERY_LONG"),
+        weights=(35, 45, 17, 2.5, 0.5),
         k=1,
     )[0]
     if length_group == "SHORT":
-        return random.choices((1, 2, 3), weights=(35, 40, 25), k=1)[0]
+        return random.randint(1, 4)
     if length_group == "TYPICAL":
         return random.choices(
-            (4, 5, 6, 7, 8),
-            weights=(15, 25, 25, 20, 15),
+            tuple(range(5, 13)),
+            weights=(10, 14, 17, 18, 16, 12, 8, 5),
             k=1,
         )[0]
+    if length_group == "ENGAGED":
+        return random.randint(13, 30)
     if length_group == "LONG":
-        return random.randint(9, 20)
-    return random.randint(21, 35)
+        return random.randint(31, 60)
+    return random.randint(61, 90)
 
 
 def _message_gap_seconds() -> int:
@@ -412,7 +417,7 @@ def validate_conversations(
     """Validate conversation schema, references, timing, and long-tail activity."""
     if not CONVERSATION_MIN_COUNT <= len(conversations) <= CONVERSATION_MAX_COUNT:
         raise ValueError(
-            "conversations validation failed: expected 45,000-55,000 records, "
+            "conversations validation failed: expected 100,000-130,000 records, "
             f"received {len(conversations)}"
         )
     users_by_id = {user["user_id"]: user for user in users}
@@ -421,7 +426,11 @@ def validate_conversations(
     generation_end = _generation_end(partition_date)
     for conversation in conversations:
         if (
-            set(conversation) != CONVERSATION_FIELDS
+            set(conversation)
+            not in (
+                CONVERSATION_FIELDS,
+                CONVERSATION_FIELDS | {INGESTION_FIELD},
+            )
             or WAREHOUSE_FIELDS.intersection(conversation)
         ):
             raise ValueError("conversations validation failed: invalid schema")
@@ -478,7 +487,7 @@ def validate_messages(
     """Validate message integrity, ordering, timing, text, and distributions."""
     if not MESSAGE_MIN_COUNT <= len(messages) <= MESSAGE_MAX_COUNT:
         raise ValueError(
-            "messages validation failed: expected 250,000-350,000 records, "
+            "messages validation failed: expected 1,000,000-1,200,000 records, "
             f"received {len(messages)}"
         )
     conversations_by_id = {
@@ -496,7 +505,10 @@ def validate_messages(
     platform_counts = Counter()
 
     for message in messages:
-        if set(message) != MESSAGE_FIELDS or WAREHOUSE_FIELDS.intersection(message):
+        if (
+            set(message) not in (MESSAGE_FIELDS, MESSAGE_FIELDS | {INGESTION_FIELD})
+            or WAREHOUSE_FIELDS.intersection(message)
+        ):
             raise ValueError("messages validation failed: invalid schema")
         message_id = message.get("message_id")
         if not message_id or message_id in message_ids:
@@ -547,7 +559,11 @@ def validate_messages(
         expected_sequence = 1
         previous_timestamp = None
         calendar_days = set()
-        for message in conversation_messages:
+        ordered_messages = sorted(
+            conversation_messages,
+            key=lambda row: row["sequence_number"],
+        )
+        for message in ordered_messages:
             if message["sequence_number"] != expected_sequence:
                 raise ValueError(
                     "messages validation failed: non-contiguous sequence for "
@@ -612,7 +628,8 @@ def summarize_activity(
         "1-2": sum(1 <= count <= 2 for count in conversations_per_user.values()),
         "3-10": sum(3 <= count <= 10 for count in conversations_per_user.values()),
         "11-30": sum(11 <= count <= 30 for count in conversations_per_user.values()),
-        "30+": sum(count > 30 for count in conversations_per_user.values()),
+        "31-100": sum(31 <= count <= 100 for count in conversations_per_user.values()),
+        "100+": sum(count > 100 for count in conversations_per_user.values()),
     }
 
     messages_per_conversation = Counter(
@@ -620,6 +637,7 @@ def summarize_activity(
     )
     message_counts = sorted(messages_per_conversation.values())
     p95_index = max(0, int(0.95 * len(message_counts)) - 1)
+    p99_index = max(0, int(0.99 * len(message_counts)) - 1)
     conversation_dates: dict[str, set[date]] = {}
     device_platforms = {
         device["device_id"]: device["app_platform"] for device in devices
@@ -643,6 +661,7 @@ def summarize_activity(
         "average_messages": statistics.mean(message_counts),
         "median_messages": statistics.median(message_counts),
         "p95_messages": message_counts[p95_index],
+        "p99_messages": message_counts[p99_index],
         "max_messages": max(message_counts),
         "multi_day_conversations": sum(
             len(calendar_days) > 1
