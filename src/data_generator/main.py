@@ -5,6 +5,12 @@ from datetime import date, datetime, timezone
 
 from faker import Faker
 
+from .activity_data import (
+    generate_conversations,
+    generate_messages,
+    load_existing_user_data,
+    summarize_activity,
+)
 from .config import (
     DEFAULT_AWS_REGION,
     DEFAULT_LOCAL_ROOT,
@@ -53,7 +59,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--dataset",
-        choices=("reference", "users"),
+        choices=("reference", "users", "activity"),
         default="reference",
         help="Dataset group to generate (default: reference).",
     )
@@ -123,6 +129,49 @@ def _generate_user_datasets(fake: Faker, partition_date: date) -> tuple:
     )
 
 
+def _generate_activity_datasets(partition_date: date) -> tuple:
+    users, user_updates, source_paths = load_existing_user_data(
+        partition_date,
+        DEFAULT_LOCAL_ROOT,
+    )
+    devices = generate_devices()
+    conversations = generate_conversations(users, user_updates, partition_date)
+    messages = generate_messages(
+        users,
+        user_updates,
+        conversations,
+        devices,
+        partition_date,
+    )
+    summary = summarize_activity(users, conversations, messages, devices)
+
+    print(f"Loaded users from {source_paths[0]}")
+    print(f"Loaded user updates from {source_paths[1]}")
+    print(f"Users available: {summary['users_available']:,}")
+    print("\nUsers with:")
+    for bucket, count in summary["user_conversation_buckets"].items():
+        print(f"{bucket} conversations: {count:,}")
+    print(f"\nTotal conversations: {summary['conversation_count']:,}")
+    print("\nMessages:")
+    print(f"total: {summary['message_count']:,}")
+    print(f"average per conversation: {summary['average_messages']:.2f}")
+    print(f"median per conversation: {summary['median_messages']:.1f}")
+    print(f"p95 per conversation: {summary['p95_messages']}")
+    print(f"maximum: {summary['max_messages']}")
+    print(
+        "\nConversations spanning >1 calendar day: "
+        f"{summary['multi_day_conversations']:,}"
+    )
+    print("\nPlatform/device distribution:")
+    for platform in ("WEB", "IOS", "ANDROID", "NULL"):
+        print(f"{platform}: {summary['platform_distribution'][platform]:,}")
+
+    return (
+        ("conversations", "conversations", conversations),
+        ("messages", "messages", messages),
+    )
+
+
 def main() -> None:
     args = parse_args()
     config = load_config(require_s3=args.output == "s3")
@@ -137,8 +186,10 @@ def main() -> None:
                 generate_subscription_plans(),
             ),
         )
-    else:
+    elif args.dataset == "users":
         datasets = _generate_user_datasets(fake, args.partition_date)
+    else:
+        datasets = _generate_activity_datasets(args.partition_date)
 
     for entity_name, display_name, records in datasets:
         print(f"Generated {len(records)} {display_name}")
