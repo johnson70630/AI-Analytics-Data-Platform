@@ -2,9 +2,10 @@
 
 import json
 import uuid
+from collections import OrderedDict
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, TextIO
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -30,6 +31,15 @@ def serialize_ndjson(records: Iterable[Record]) -> str:
         for record in records
     ]
     return "\n".join(lines) + ("\n" if lines else "")
+
+
+def serialize_record(record: Record) -> str:
+    """Serialize one record for streaming NDJSON output."""
+    return json.dumps(
+        record,
+        default=_json_default,
+        separators=(",", ":"),
+    ) + "\n"
 
 
 def _partition_value(partition_date: date | str) -> str:
@@ -132,3 +142,60 @@ def write_records_to_s3(
             f"to bucket {bucket} with key {key}"
         )
     return key
+
+
+class PartitionedNDJSONWriter:
+    """Stream one NDJSON file per date while bounding open file handles."""
+
+    def __init__(
+        self,
+        output_root: str | Path,
+        entity_name: str,
+        *,
+        max_open_files: int = 24,
+    ) -> None:
+        if max_open_files < 1:
+            raise ValueError("max_open_files must be positive")
+        self.output_root = Path(output_root)
+        self.entity_name = entity_name
+        self.max_open_files = max_open_files
+        self.paths: dict[date, Path] = {}
+        self.counts: dict[date, int] = {}
+        self._handles: OrderedDict[date, TextIO] = OrderedDict()
+
+    def _handle_for(self, partition_date: date) -> TextIO:
+        handle = self._handles.pop(partition_date, None)
+        if handle is not None:
+            self._handles[partition_date] = handle
+            return handle
+        path = self.paths.get(partition_date)
+        if path is None:
+            path = self.output_root / build_object_key(
+                self.entity_name,
+                partition_date,
+            )
+            path.parent.mkdir(parents=True, exist_ok=True)
+            self.paths[partition_date] = path
+        handle = path.open("a", encoding="utf-8")
+        self._handles[partition_date] = handle
+        if len(self._handles) > self.max_open_files:
+            _, oldest = self._handles.popitem(last=False)
+            oldest.close()
+        return handle
+
+    def write(self, record: Record, partition_date: date) -> None:
+        """Append one record to its daily partition."""
+        handle = self._handle_for(partition_date)
+        handle.write(serialize_record(record))
+        self.counts[partition_date] = self.counts.get(partition_date, 0) + 1
+
+    def close(self) -> None:
+        for handle in self._handles.values():
+            handle.close()
+        self._handles.clear()
+
+    def __enter__(self) -> "PartitionedNDJSONWriter":
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> None:
+        self.close()

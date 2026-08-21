@@ -3,26 +3,40 @@
 import json
 import random
 from collections import Counter, defaultdict
+from collections.abc import Iterator
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 
 from .writers import write_records_locally, write_records_to_s3
 
 
 EVENT_TIMESTAMP_FIELDS = {
-    "users": "signup_at",
-    "user_updates": "updated_at",
-    "conversations": "created_at",
-    "messages": "created_at",
+    "users": ("signup_at",),
+    "user_updates": ("updated_at",),
+    "conversations": ("created_at",),
+    "messages": ("created_at",),
+    "completions": ("completed_at", "requested_at"),
+    "model_inferences": ("response_at", "request_at"),
+}
+RECORD_TIMESTAMP_FIELDS = {
+    "users": ("signup_at", "ingested_at"),
+    "user_updates": ("updated_at", "ingested_at"),
+    "conversations": ("created_at", "ingested_at"),
+    "messages": ("created_at", "ingested_at"),
+    "completions": ("requested_at", "completed_at", "ingested_at"),
+    "model_inferences": ("request_at", "response_at", "ingested_at"),
 }
 EVENT_ID_FIELDS = {
     "users": "user_id",
     "user_updates": "update_id",
     "conversations": "conversation_id",
     "messages": "message_id",
+    "completions": "completion_id",
+    "model_inferences": "inference_id",
 }
 S3_REPLACEMENT_KEYS = {
     "users": "raw/users/dt=2026-08-20/2437a9a9-b719-4b22-8e77-1fa844e6e475.json",
@@ -47,6 +61,31 @@ def _ingestion_delay_seconds() -> int:
     return random.randint(21_601, 172_800)
 
 
+def ingestion_timestamp(
+    event_timestamp: datetime,
+    generation_end: datetime,
+) -> datetime:
+    """Return a bounded ingestion timestamp using the shared delay profile."""
+    available_seconds = max(
+        0,
+        int((generation_end - event_timestamp).total_seconds()),
+    )
+    delay = min(_ingestion_delay_seconds(), available_seconds)
+    return event_timestamp + timedelta(seconds=delay)
+
+
+def primary_event_timestamp(
+    entity_name: str,
+    record: dict[str, Any],
+) -> datetime:
+    """Select the first available primary event timestamp for an entity."""
+    for field_name in EVENT_TIMESTAMP_FIELDS[entity_name]:
+        value = record.get(field_name)
+        if isinstance(value, datetime):
+            return value
+    raise ValueError(f"{entity_name} record has no primary event timestamp")
+
+
 def add_ingestion_timestamps(
     records: list[dict[str, Any]],
     event_timestamp_field: str,
@@ -56,15 +95,13 @@ def add_ingestion_timestamps(
     enriched = []
     for record in records:
         event_timestamp = record[event_timestamp_field]
-        available_seconds = max(
-            0,
-            int((generation_end - event_timestamp).total_seconds()),
-        )
-        delay = min(_ingestion_delay_seconds(), available_seconds)
         enriched.append(
             {
                 **record,
-                "ingested_at": event_timestamp + timedelta(seconds=delay),
+                "ingested_at": ingestion_timestamp(
+                    event_timestamp,
+                    generation_end,
+                ),
             }
         )
     return enriched
@@ -173,6 +210,44 @@ def _parse_utc(value: str) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
+def _parse_record_timestamps(
+    entity_name: str,
+    record: dict[str, Any],
+) -> dict[str, Any]:
+    for field_name in RECORD_TIMESTAMP_FIELDS[entity_name]:
+        value = record.get(field_name)
+        if isinstance(value, str):
+            record[field_name] = _parse_utc(value)
+    return record
+
+
+def iter_local_partitioned_records(
+    entity_name: str,
+    output_root: str | Path,
+) -> Iterator[tuple[dict[str, Any], date]]:
+    """Yield parsed NDJSON records with their physical local partition date."""
+    paths = sorted(
+        (Path(output_root) / "raw" / entity_name).glob("dt=*/*.json")
+    )
+    if not paths:
+        raise RuntimeError(f"No local partitioned files found for {entity_name}")
+    for path in paths:
+        partition_date = date.fromisoformat(path.parent.name.removeprefix("dt="))
+        try:
+            with path.open(encoding="utf-8") as source:
+                for line in source:
+                    if line.strip():
+                        yield (
+                            _parse_record_timestamps(
+                                entity_name,
+                                json.loads(line),
+                            ),
+                            partition_date,
+                        )
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"Failed to reload {path}: {exc}") from exc
+
+
 def load_local_partitioned_records(
     entity_name: str,
     output_root: str | Path,
@@ -185,7 +260,6 @@ def load_local_partitioned_records(
         raise RuntimeError(f"No local partitioned files found for {entity_name}")
     records = []
     physical_dates = []
-    event_field = EVENT_TIMESTAMP_FIELDS[entity_name]
     for path in paths:
         partition_date = date.fromisoformat(path.parent.name.removeprefix("dt="))
         try:
@@ -197,8 +271,7 @@ def load_local_partitioned_records(
         except (OSError, json.JSONDecodeError) as exc:
             raise RuntimeError(f"Failed to reload {path}: {exc}") from exc
         for record in file_records:
-            record[event_field] = _parse_utc(record[event_field])
-            record["ingested_at"] = _parse_utc(record["ingested_at"])
+            _parse_record_timestamps(entity_name, record)
         records.extend(file_records)
         physical_dates.extend([partition_date] * len(file_records))
     return records, physical_dates, paths
@@ -223,7 +296,6 @@ def load_s3_partitioned_records(
         raise RuntimeError(f"No S3 partitioned objects found for {entity_name}")
     records = []
     physical_dates = []
-    event_field = EVENT_TIMESTAMP_FIELDS[entity_name]
     for key in keys:
         response = client.get_object(Bucket=bucket, Key=key)
         if response.get("ContentType") != "application/x-ndjson":
@@ -240,11 +312,106 @@ def load_s3_partitioned_records(
             if line
         ]
         for record in file_records:
-            record[event_field] = _parse_utc(record[event_field])
-            record["ingested_at"] = _parse_utc(record["ingested_at"])
+            _parse_record_timestamps(entity_name, record)
         records.extend(file_records)
         physical_dates.extend([partition_date] * len(file_records))
     return records, physical_dates, keys
+
+
+def iter_s3_partitioned_records(
+    client: Any,
+    bucket: str,
+    entity_name: str,
+) -> Iterator[tuple[dict[str, Any], date]]:
+    """Yield parsed S3 NDJSON records with their physical partition date."""
+    paginator = client.get_paginator("list_objects_v2")
+    keys = sorted(
+        item["Key"]
+        for page in paginator.paginate(
+            Bucket=bucket,
+            Prefix=f"raw/{entity_name}/dt=",
+        )
+        for item in page.get("Contents", [])
+    )
+    if not keys:
+        raise RuntimeError(f"No S3 partitioned objects found for {entity_name}")
+    for key in keys:
+        response = client.get_object(Bucket=bucket, Key=key)
+        if response.get("ContentType") != "application/x-ndjson":
+            raise ValueError(
+                f"Unexpected content type for s3://{bucket}/{key}: "
+                f"{response.get('ContentType')}"
+            )
+        partition_date = date.fromisoformat(
+            key.split("/dt=", 1)[1].split("/", 1)[0]
+        )
+        try:
+            for raw_line in response["Body"].iter_lines():
+                if raw_line:
+                    yield (
+                        _parse_record_timestamps(
+                            entity_name,
+                            json.loads(raw_line.decode("utf-8")),
+                        ),
+                        partition_date,
+                    )
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise RuntimeError(
+                f"Failed to reload s3://{bucket}/{key}: {exc}"
+            ) from exc
+
+
+def upload_local_partitioned_files(
+    entity_name: str,
+    output_root: str | Path,
+    *,
+    bucket: str,
+    region: str,
+    aws_access_key_id: str,
+    aws_secret_access_key: str,
+) -> list[str]:
+    """Upload validated local daily files to identical, idempotent S3 keys."""
+    root = Path(output_root)
+    paths = sorted((root / "raw" / entity_name).glob("dt=*/*.json"))
+    if not paths:
+        raise RuntimeError(f"No local partitioned files found for {entity_name}")
+    client = boto3.client(
+        "s3",
+        region_name=region,
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+    )
+    keys = [path.relative_to(root).as_posix() for path in paths]
+    existing = {
+        item["Key"]
+        for page in client.get_paginator("list_objects_v2").paginate(
+            Bucket=bucket,
+            Prefix=f"raw/{entity_name}/dt=",
+        )
+        for item in page.get("Contents", [])
+    }
+    unexpected = existing.difference(keys)
+    if unexpected:
+        raise RuntimeError(
+            f"Refusing to upload {entity_name}: found {len(unexpected)} "
+            "unexpected existing S3 object(s)"
+        )
+    for path, key in zip(paths, keys):
+        try:
+            client.put_object(
+                Bucket=bucket,
+                Key=key,
+                Body=path.read_bytes(),
+                ContentType="application/x-ndjson",
+            )
+        except (OSError, BotoCoreError, ClientError) as exc:
+            raise RuntimeError(
+                f"Failed to upload {path} to s3://{bucket}/{key}: {exc}"
+            ) from exc
+    print(
+        f"Uploaded {len(paths)} validated {entity_name} daily files to S3"
+    )
+    return keys
 
 
 def validate_ingestion_records(
@@ -254,7 +421,6 @@ def validate_ingestion_records(
     physical_partition_dates: list[date] | None = None,
 ) -> None:
     """Validate ingestion ordering, horizon, partitions, and ID uniqueness."""
-    event_field = EVENT_TIMESTAMP_FIELDS[entity_name]
     id_field = EVENT_ID_FIELDS[entity_name]
     seen_ids = set()
     for index, record in enumerate(records):
@@ -265,7 +431,7 @@ def validate_ingestion_records(
                 f"{record_id}"
             )
         seen_ids.add(record_id)
-        event_timestamp = record.get(event_field)
+        event_timestamp = primary_event_timestamp(entity_name, record)
         ingested_at = record.get("ingested_at")
         if (
             not isinstance(ingested_at, datetime)
@@ -294,7 +460,6 @@ def ingestion_report(records_by_entity: dict[str, list[dict[str, Any]]]) -> dict
     categories = Counter()
     partitions = {}
     for entity_name, records in records_by_entity.items():
-        event_field = EVENT_TIMESTAMP_FIELDS[entity_name]
         entity_dates = [record["ingested_at"].date() for record in records]
         partitions[entity_name] = {
             "count": len(set(entity_dates)),
@@ -302,7 +467,7 @@ def ingestion_report(records_by_entity: dict[str, list[dict[str, Any]]]) -> dict
             "latest": max(entity_dates),
         }
         for record in records:
-            event_timestamp = record[event_field]
+            event_timestamp = primary_event_timestamp(entity_name, record)
             ingested_at = record["ingested_at"]
             delay = (ingested_at - event_timestamp).total_seconds()
             delays.append(delay)

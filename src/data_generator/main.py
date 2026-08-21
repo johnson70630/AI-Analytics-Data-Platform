@@ -3,6 +3,7 @@
 import argparse
 from datetime import date, datetime, timezone
 
+import boto3
 from faker import Faker
 
 from .activity_data import (
@@ -26,9 +27,16 @@ from .ingestion import (
     ingestion_report,
     load_local_partitioned_records,
     remove_local_event_outputs,
+    upload_local_partitioned_files,
     validate_ingestion_records,
     write_partitioned_records_locally,
     write_partitioned_records_to_s3,
+)
+from .inference_data import (
+    generate_inference_data_locally,
+    print_inference_summary,
+    validate_local_inference_data,
+    validate_s3_inference_data,
 )
 from .reference_data import (
     generate_devices,
@@ -73,7 +81,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--dataset",
-        choices=("reference", "users", "activity"),
+        choices=("reference", "users", "activity", "inference"),
         default="reference",
         help="Dataset group to generate (default: reference).",
     )
@@ -274,6 +282,55 @@ def main() -> None:
     args = parse_args()
     config = load_config(require_s3=args.output == "s3")
     fake = initialize_randomness(args.seed)
+    if args.dataset == "inference":
+        if args.output == "local":
+            generate_inference_data_locally(
+                args.partition_date,
+                DEFAULT_LOCAL_ROOT,
+            )
+            summary = validate_local_inference_data(
+                args.partition_date,
+                DEFAULT_LOCAL_ROOT,
+            )
+            print("\nSerialized local Milestone 5 validation: PASS")
+            print_inference_summary(summary)
+        else:
+            local_summary = validate_local_inference_data(
+                args.partition_date,
+                DEFAULT_LOCAL_ROOT,
+            )
+            print("Validated local Milestone 5 data before S3 upload: PASS")
+            for entity_name in ("completions", "model_inferences"):
+                upload_local_partitioned_files(
+                    entity_name,
+                    DEFAULT_LOCAL_ROOT,
+                    bucket=config["s3_bucket"],
+                    region=config["aws_default_region"] or DEFAULT_AWS_REGION,
+                    aws_access_key_id=config["aws_access_key_id"],
+                    aws_secret_access_key=config["aws_secret_access_key"],
+                )
+            client = boto3.client(
+                "s3",
+                region_name=config["aws_default_region"] or DEFAULT_AWS_REGION,
+                aws_access_key_id=config["aws_access_key_id"],
+                aws_secret_access_key=config["aws_secret_access_key"],
+            )
+            s3_summary = validate_s3_inference_data(
+                client,
+                config["s3_bucket"],
+                args.partition_date,
+                DEFAULT_LOCAL_ROOT,
+            )
+            if (
+                s3_summary["completions"] != local_summary["completions"]
+                or s3_summary["model_inferences"]
+                != local_summary["model_inferences"]
+            ):
+                raise ValueError("S3 Milestone 5 totals do not match local data")
+            print("\nSerialized S3 Milestone 5 validation: PASS")
+            print_inference_summary(s3_summary)
+        return
+
     if args.dataset == "reference":
         datasets = (
             ("models", "models", generate_models()),
