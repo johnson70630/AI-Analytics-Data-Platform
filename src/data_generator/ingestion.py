@@ -253,10 +253,12 @@ def _parse_record_timestamps(
 def iter_local_partitioned_records(
     entity_name: str,
     output_root: str | Path,
+    *,
+    prefix: str = "raw",
 ) -> Iterator[tuple[dict[str, Any], date]]:
     """Yield parsed NDJSON records with their physical local partition date."""
     paths = sorted(
-        (Path(output_root) / "raw" / entity_name).glob("dt=*/*.json")
+        (Path(output_root) / prefix / entity_name).glob("dt=*/*.json")
     )
     if not paths:
         raise RuntimeError(f"No local partitioned files found for {entity_name}")
@@ -280,10 +282,12 @@ def iter_local_partitioned_records(
 def load_local_partitioned_records(
     entity_name: str,
     output_root: str | Path,
+    *,
+    prefix: str = "raw",
 ) -> tuple[list[dict[str, Any]], list[date], list[Path]]:
     """Reload daily NDJSON files and retain each row's physical partition date."""
     paths = sorted(
-        (Path(output_root) / "raw" / entity_name).glob("dt=*/*.json")
+        (Path(output_root) / prefix / entity_name).glob("dt=*/*.json")
     )
     if not paths:
         raise RuntimeError(f"No local partitioned files found for {entity_name}")
@@ -351,6 +355,8 @@ def iter_s3_partitioned_records(
     client: Any,
     bucket: str,
     entity_name: str,
+    *,
+    prefix: str = "raw",
 ) -> Iterator[tuple[dict[str, Any], date]]:
     """Yield parsed S3 NDJSON records with their physical partition date."""
     paginator = client.get_paginator("list_objects_v2")
@@ -358,7 +364,7 @@ def iter_s3_partitioned_records(
         item["Key"]
         for page in paginator.paginate(
             Bucket=bucket,
-            Prefix=f"raw/{entity_name}/dt=",
+            Prefix=f"{prefix}/{entity_name}/dt=",
         )
         for item in page.get("Contents", [])
     )
@@ -398,10 +404,11 @@ def upload_local_partitioned_files(
     region: str,
     aws_access_key_id: str,
     aws_secret_access_key: str,
+    prefix: str = "raw",
 ) -> list[str]:
     """Upload validated local daily files to identical, idempotent S3 keys."""
     root = Path(output_root)
-    paths = sorted((root / "raw" / entity_name).glob("dt=*/*.json"))
+    paths = sorted((root / prefix / entity_name).glob("dt=*/*.json"))
     if not paths:
         raise RuntimeError(f"No local partitioned files found for {entity_name}")
     client = boto3.client(
@@ -415,7 +422,7 @@ def upload_local_partitioned_files(
         item["Key"]
         for page in client.get_paginator("list_objects_v2").paginate(
             Bucket=bucket,
-            Prefix=f"raw/{entity_name}/dt=",
+            Prefix=f"{prefix}/{entity_name}/dt=",
         )
         for item in page.get("Contents", [])
     }

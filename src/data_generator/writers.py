@@ -53,12 +53,19 @@ def _partition_value(partition_date: date | str) -> str:
         raise ValueError("partition_date must use YYYY-MM-DD format") from exc
 
 
-def build_object_key(entity_name: str, partition_date: date | str) -> str:
-    """Build a raw Bronze object path for an operational entity."""
+def build_object_key(
+    entity_name: str,
+    partition_date: date | str,
+    *,
+    prefix: str = "raw",
+) -> str:
+    """Build a partitioned object path for an operational entity."""
     if not entity_name or any(part in entity_name for part in ("/", "\\", "..")):
         raise ValueError("entity_name must be a non-empty path-safe name")
+    if not prefix or any(part in prefix for part in ("/", "\\", "..")):
+        raise ValueError("prefix must be a non-empty path-safe name")
     return (
-        f"raw/{entity_name}/dt={_partition_value(partition_date)}/"
+        f"{prefix}/{entity_name}/dt={_partition_value(partition_date)}/"
         f"{uuid.uuid4()}.json"
     )
 
@@ -153,11 +160,13 @@ class PartitionedNDJSONWriter:
         entity_name: str,
         *,
         max_open_files: int = 24,
+        prefix: str = "raw",
     ) -> None:
         if max_open_files < 1:
             raise ValueError("max_open_files must be positive")
         self.output_root = Path(output_root)
         self.entity_name = entity_name
+        self.prefix = prefix
         self.max_open_files = max_open_files
         self.paths: dict[date, Path] = {}
         self.counts: dict[date, int] = {}
@@ -173,6 +182,7 @@ class PartitionedNDJSONWriter:
             path = self.output_root / build_object_key(
                 self.entity_name,
                 partition_date,
+                prefix=self.prefix,
             )
             path.parent.mkdir(parents=True, exist_ok=True)
             self.paths[partition_date] = path

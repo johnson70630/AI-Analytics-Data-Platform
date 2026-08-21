@@ -44,6 +44,17 @@ from .inference_data import (
     validate_local_inference_data,
     validate_s3_inference_data,
 )
+from .messy_data import (
+    BRONZE_ENTITIES,
+    assert_clean_baseline_unchanged,
+    generate_messy_bronze_locally,
+    print_messy_summary,
+    s3_raw_inventory,
+    snapshot_clean_baseline,
+    validate_local_messy_bronze,
+    validate_s3_messy_bronze,
+    verify_s3_raw_row_counts,
+)
 from .quality_events import (
     generate_quality_events_locally,
     print_quality_summary,
@@ -100,6 +111,7 @@ def parse_args() -> argparse.Namespace:
             "inference",
             "feedback_errors",
             "finance",
+            "messy",
         ),
         default="reference",
         help="Dataset group to generate (default: reference).",
@@ -301,6 +313,75 @@ def main() -> None:
     args = parse_args()
     config = load_config(require_s3=args.output == "s3")
     fake = initialize_randomness(args.seed)
+    if args.dataset == "messy":
+        clean_before = snapshot_clean_baseline(DEFAULT_LOCAL_ROOT)
+        if args.output == "local":
+            generate_messy_bronze_locally(
+                args.partition_date,
+                DEFAULT_LOCAL_ROOT,
+                args.seed,
+            )
+            clean_after = snapshot_clean_baseline(DEFAULT_LOCAL_ROOT)
+            assert_clean_baseline_unchanged(clean_before, clean_after)
+            summary = validate_local_messy_bronze(DEFAULT_LOCAL_ROOT)
+            print("\nSerialized local Milestone 8 validation: PASS")
+            print("Clean raw byte-level baseline verification: PASS")
+            print_messy_summary(summary)
+        else:
+            local_summary = validate_local_messy_bronze(DEFAULT_LOCAL_ROOT)
+            client = boto3.client(
+                "s3",
+                region_name=config["aws_default_region"] or DEFAULT_AWS_REGION,
+                aws_access_key_id=config["aws_access_key_id"],
+                aws_secret_access_key=config["aws_secret_access_key"],
+            )
+            raw_before = s3_raw_inventory(client, config["s3_bucket"])
+            for entity_name in BRONZE_ENTITIES:
+                upload_local_partitioned_files(
+                    entity_name,
+                    DEFAULT_LOCAL_ROOT,
+                    bucket=config["s3_bucket"],
+                    region=config["aws_default_region"] or DEFAULT_AWS_REGION,
+                    aws_access_key_id=config["aws_access_key_id"],
+                    aws_secret_access_key=config["aws_secret_access_key"],
+                    prefix="bronze",
+                )
+            upload_local_partitioned_files(
+                "injection_manifest",
+                DEFAULT_LOCAL_ROOT,
+                bucket=config["s3_bucket"],
+                region=config["aws_default_region"] or DEFAULT_AWS_REGION,
+                aws_access_key_id=config["aws_access_key_id"],
+                aws_secret_access_key=config["aws_secret_access_key"],
+                prefix="quality",
+            )
+            raw_after = s3_raw_inventory(client, config["s3_bucket"])
+            if raw_before != raw_after:
+                raise ValueError("Clean raw S3 object inventory changed")
+            s3_summary = validate_s3_messy_bronze(
+                client,
+                config["s3_bucket"],
+                DEFAULT_LOCAL_ROOT,
+            )
+            for key in (
+                "bronze_counts",
+                "missing_total",
+                "duplicate_total",
+                "timestamp_total",
+                "manifest_rows",
+            ):
+                if s3_summary[key] != local_summary[key]:
+                    raise ValueError(f"Local/S3 messy-data mismatch for {key}")
+            verify_s3_raw_row_counts(
+                client,
+                config["s3_bucket"],
+                clean_before["rows"],
+            )
+            print("\nSerialized S3 Milestone 8 validation: PASS")
+            print("Clean raw S3 inventory and row-count verification: PASS")
+            print_messy_summary(s3_summary)
+        return
+
     if args.dataset == "finance":
         if args.output == "local":
             generate_finance_data_locally(
