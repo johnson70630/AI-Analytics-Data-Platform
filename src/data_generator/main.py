@@ -6,6 +6,13 @@ from datetime import date, datetime, timezone
 import boto3
 from faker import Faker
 
+from .bronze_materialization import (
+    COPY_ONLY_BRONZE_ENTITIES,
+    assert_inventory_unchanged,
+    capture_protected_s3_inventory,
+    materialize_missing_bronze_entities,
+    validate_materialized_bronze_entities,
+)
 from .activity_data import (
     generate_conversations,
     generate_messages,
@@ -112,6 +119,7 @@ def parse_args() -> argparse.Namespace:
             "feedback_errors",
             "finance",
             "messy",
+            "bronze",
         ),
         default="reference",
         help="Dataset group to generate (default: reference).",
@@ -312,6 +320,44 @@ def _load_partitioned_activity_datasets(partition_date: date) -> tuple:
 def main() -> None:
     args = parse_args()
     config = load_config(require_s3=args.output == "s3")
+    if args.dataset == "bronze":
+        if args.output != "s3":
+            raise ValueError("Complete Bronze materialization requires --output s3")
+        client = boto3.client(
+            "s3",
+            region_name=config["aws_default_region"] or DEFAULT_AWS_REGION,
+            aws_access_key_id=config["aws_access_key_id"],
+            aws_secret_access_key=config["aws_secret_access_key"],
+        )
+        protected_before = capture_protected_s3_inventory(
+            client,
+            config["s3_bucket"],
+        )
+        materialized = materialize_missing_bronze_entities(
+            client,
+            config["s3_bucket"],
+        )
+        validation = validate_materialized_bronze_entities(
+            client,
+            config["s3_bucket"],
+        )
+        protected_after = capture_protected_s3_inventory(
+            client,
+            config["s3_bucket"],
+        )
+        assert_inventory_unchanged(protected_before, protected_after)
+        print("\nComplete Bronze materialization validation: PASS")
+        print("Raw, dirty Bronze, and quality manifest inventories: UNCHANGED")
+        for entity_name in COPY_ONLY_BRONZE_ENTITIES:
+            print(
+                f"{entity_name}: "
+                f"{validation['object_counts'][entity_name]:,} objects / "
+                f"{validation['raw_row_counts'][entity_name]:,} raw rows / "
+                f"{validation['bronze_row_counts'][entity_name]:,} Bronze rows / "
+                f"{materialized['copied_objects'][entity_name]:,} copied / "
+                f"{materialized['skipped_objects'][entity_name]:,} existing"
+            )
+        return
     fake = initialize_randomness(args.seed)
     if args.dataset == "messy":
         clean_before = snapshot_clean_baseline(DEFAULT_LOCAL_ROOT)
