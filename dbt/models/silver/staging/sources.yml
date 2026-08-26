@@ -1,0 +1,33 @@
+version: 2
+
+sources:
+  - name: bronze
+    description: >
+      Bronze-layer JSON Lines datasets stored in S3. Bronze contains all
+      14 source entities and is partitioned by ingestion date where applicable.
+      Selected entities contain controlled data-quality issues used by the
+      Silver cleaning pipeline.
+
+    config:
+      external_location: >
+        read_json_auto(
+          's3://{{ env_var("S3_BUCKET") }}/bronze/{name}/dt=*/*.json',
+          format='newline_delimited',
+          union_by_name=true
+        )
+
+    tables:
+      - name: models
+      - name: devices
+      - name: subscription_plans
+      - name: users
+      - name: user_updates
+      - name: conversations
+      - name: messages
+      - name: completions
+      - name: model_inferences
+      - name: feedback
+      - name: errors
+      - name: subscriptions
+      - name: purchases
+      - name: payments

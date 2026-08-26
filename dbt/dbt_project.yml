@@ -1,0 +1,20 @@
+name: 'ai_analytics'
+version: '1.0.0'
+config-version: 2
+
+profile: 'ai_analytics'
+
+model-paths: ["models"]
+snapshot-paths: ["snapshots"]
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  ai_analytics:
+    silver:
+      +materialized: table
+      +schema: silver
+      staging:
+        +materialized: view
+    gold:
+      +materialized: table
+      +schema: gold
