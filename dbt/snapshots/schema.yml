@@ -1,0 +1,27 @@
+version: 2
+
+snapshots:
+  - name: dim_user_snapshot
+    description: >
+      Ongoing dbt snapshot of current user state after the historical bootstrap.
+      Only country and account status changes create new SCD Type 2 versions.
+      A future dim_user model will overlay the latest email and name from
+      current_user_state across snapshot versions to preserve Type 1 semantics.
+    config:
+      schema: snapshots
+      strategy: check
+      unique_key: user_id
+      check_cols:
+        - country_code
+        - account_status
+    columns:
+      - name: user_id
+        data_tests:
+          - not_null
+      - name: dbt_scd_id
+        data_tests:
+          - unique
+          - not_null
+      - name: dbt_valid_from
+        data_tests:
+          - not_null

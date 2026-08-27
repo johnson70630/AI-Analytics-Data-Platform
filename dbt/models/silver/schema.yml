@@ -1,0 +1,27 @@
+version: 2
+
+models:
+  - name: current_user_state
+    description: >
+      One current row per user after deterministically applying the latest
+      update for each mutable source attribute.
+    columns:
+      - name: user_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: user_state_history
+    description: >
+      Historical SCD Type 2 bootstrap reconstructed deterministically from the
+      initial user record and CDC events that predate dbt snapshot execution.
+    columns:
+      - name: user_id
+        data_tests:
+          - not_null
+      - name: version_sequence
+        data_tests:
+          - not_null
+      - name: effective_start_at
+        data_tests:
+          - not_null
