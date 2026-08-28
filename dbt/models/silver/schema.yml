@@ -87,3 +87,57 @@ models:
       - name: user_id
         data_tests:
           - not_null
+
+  - name: fact_conversation
+    description: One row per conversation.
+    columns:
+      - name: conversation_id
+        data_tests: [unique, not_null]
+
+  - name: fact_message
+    description: One row per message.
+    columns:
+      - name: message_id
+        data_tests: [unique, not_null]
+
+  - name: fact_completion
+    description: One row per completion lifecycle.
+    columns:
+      - name: completion_id
+        data_tests: [unique, not_null]
+
+  - name: fact_model_inference
+    description: One row per model inference execution.
+    columns:
+      - name: inference_id
+        data_tests: [unique, not_null]
+
+  - name: fact_feedback
+    description: One row per feedback event.
+    columns:
+      - name: feedback_id
+        data_tests: [unique, not_null]
+
+  - name: fact_error
+    description: One row per error event, including context-light failures.
+    columns:
+      - name: error_id
+        data_tests: [unique, not_null]
+
+  - name: fact_subscription
+    description: One row per subscription lifecycle record.
+    columns:
+      - name: subscription_id
+        data_tests: [unique, not_null]
+
+  - name: fact_purchase
+    description: One row per purchase event.
+    columns:
+      - name: purchase_id
+        data_tests: [unique, not_null]
+
+  - name: fact_payment
+    description: One row per payment attempt; retries remain separate events.
+    columns:
+      - name: payment_id
+        data_tests: [unique, not_null]
