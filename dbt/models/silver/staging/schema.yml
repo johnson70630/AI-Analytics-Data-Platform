@@ -1,0 +1,301 @@
+version: 2
+
+models:
+  - name: stg_models
+    description: Latest normalized Bronze model-catalog record per model ID.
+    columns:
+      - name: model_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_devices
+    description: Latest normalized Bronze device-catalog record per device ID.
+    columns:
+      - name: device_id
+        data_tests:
+          - unique
+          - not_null
+      - name: device_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [DESKTOP, MOBILE, TABLET]
+      - name: app_platform
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [WEB, IOS, ANDROID]
+
+  - name: stg_subscription_plans
+    description: Latest normalized Bronze plan-catalog record per plan ID.
+    columns:
+      - name: plan_id
+        data_tests:
+          - unique
+          - not_null
+      - name: plan_name
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [FREE, PLUS, PRO]
+      - name: currency
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [USD]
+
+  - name: stg_users
+    description: Normalized Bronze user records with required-email quality state.
+    columns:
+      - name: user_id
+        data_tests:
+          - unique
+          - not_null
+      - name: account_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [ACTIVE, SUSPENDED, CLOSED]
+      - name: signup_source
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [ORGANIC, PAID_SEARCH, REFERRAL, SOCIAL, OTHER]
+
+  - name: stg_user_updates
+    description: Normalized Bronze user change events at update grain.
+    columns:
+      - name: update_id
+        data_tests:
+          - unique
+          - not_null
+      - name: user_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_users')
+                field: user_id
+      - name: field_name
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [country_code, account_status, name, email]
+
+  - name: stg_conversations
+    description: Normalized Bronze conversations at conversation grain.
+    columns:
+      - name: conversation_id
+        data_tests:
+          - unique
+          - not_null
+      - name: user_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_users')
+                field: user_id
+
+  - name: stg_messages
+    description: Deduplicated Bronze messages with missing-text and temporal flags.
+    columns:
+      - name: message_id
+        data_tests:
+          - unique
+          - not_null
+      - name: conversation_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_conversations')
+                field: conversation_id
+      - name: user_id
+        data_tests:
+          - not_null
+      - name: device_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_devices')
+                field: device_id
+
+  - name: stg_completions
+    description: Deduplicated Bronze completions with exact user recovery and temporal flags.
+    columns:
+      - name: completion_id
+        data_tests:
+          - unique
+          - not_null
+      - name: message_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_messages')
+                field: message_id
+      - name: conversation_id
+        data_tests:
+          - not_null
+      - name: user_id
+        data_tests:
+          - not_null
+      - name: completion_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [SUCCESS, FAILED, CANCELLED]
+
+  - name: stg_model_inferences
+    description: Deduplicated Bronze inference events with missing-model and temporal flags.
+    columns:
+      - name: inference_id
+        data_tests:
+          - unique
+          - not_null
+      - name: completion_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_completions')
+                field: completion_id
+      - name: user_id
+        data_tests:
+          - not_null
+      - name: model_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_models')
+                field: model_id
+      - name: inference_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [SUCCESS, FAILED]
+
+  - name: stg_feedback
+    description: Deduplicated Bronze feedback with required-type quality state.
+    columns:
+      - name: feedback_id
+        data_tests:
+          - unique
+          - not_null
+      - name: completion_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_completions')
+                field: completion_id
+      - name: user_id
+        data_tests:
+          - not_null
+      - name: feedback_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [THUMBS_UP, THUMBS_DOWN, RATING]
+
+  - name: stg_errors
+    description: Normalized Bronze operational errors with nullable source context preserved.
+    columns:
+      - name: error_id
+        data_tests:
+          - unique
+          - not_null
+      - name: error_source
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [MODEL, APPLICATION, NETWORK, DATABASE, BILLING, OTHER]
+      - name: severity
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [INFO, WARNING, ERROR, CRITICAL]
+
+  - name: stg_subscriptions
+    description: Normalized Bronze subscriptions with legitimate open-ended periods preserved.
+    columns:
+      - name: subscription_id
+        data_tests:
+          - unique
+          - not_null
+      - name: user_id
+        data_tests:
+          - not_null
+      - name: plan_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_subscription_plans')
+                field: plan_id
+      - name: subscription_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [ACTIVE, CANCELLED, EXPIRED]
+
+  - name: stg_purchases
+    description: Normalized Bronze purchases with required-type quality state.
+    columns:
+      - name: purchase_id
+        data_tests:
+          - unique
+          - not_null
+      - name: user_id
+        data_tests:
+          - not_null
+      - name: subscription_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_subscriptions')
+                field: subscription_id
+      - name: plan_id
+        data_tests:
+          - not_null
+      - name: purchase_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [NEW_SUBSCRIPTION, RENEWAL, UPGRADE]
+      - name: purchase_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [COMPLETED, FAILED, REFUNDED, PENDING]
+
+  - name: stg_payments
+    description: Deduplicated Bronze payments with required-method and temporal flags.
+    columns:
+      - name: payment_id
+        data_tests:
+          - unique
+          - not_null
+      - name: purchase_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_purchases')
+                field: purchase_id
+      - name: user_id
+        data_tests:
+          - not_null
+      - name: payment_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [SUCCESS, FAILED, REFUNDED]
+      - name: payment_method
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [CARD, PAYPAL, APPLE_PAY, GOOGLE_PAY]

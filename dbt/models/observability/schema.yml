@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: dq_entity_freshness
+    description: >
+      Entity freshness relative to the fixed synthetic project's maximum event
+      timestamp, not wall-clock time. Override dq_freshness_warn_hours from its
+      72-hour default for other operating expectations.
+    columns:
+      - name: entity_name
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dq_row_count_daily
+    description: >
+      Daily entity volumes with prior-day and trailing seven-day comparisons.
+      dq_volume_warning_pct defaults to a transparent 50 percent deviation.
+
+  - name: dq_quality_metrics_daily
+    description: >
+      Daily known quality rates. dq_quality_rate_warning_delta defaults to an
+      absolute 0.005 increase above the prior seven-day average.
+
+  - name: dq_pipeline_reconciliation
+    description: Deterministic staging-to-Silver and Silver-to-Gold count checks.
+    columns:
+      - name: reconciliation_name
+        data_tests:
+          - unique
+          - not_null

@@ -1,0 +1,143 @@
+version: 2
+
+models:
+  - name: current_user_state
+    description: >
+      One current row per user after deterministically applying the latest
+      update for each mutable source attribute.
+    columns:
+      - name: user_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: user_state_history
+    description: >
+      Historical SCD Type 2 bootstrap reconstructed deterministically from the
+      initial user record and CDC events that predate dbt snapshot execution.
+    columns:
+      - name: user_id
+        data_tests:
+          - not_null
+      - name: version_sequence
+        data_tests:
+          - not_null
+      - name: effective_start_at
+        data_tests:
+          - not_null
+
+  - name: dim_date
+    description: Complete calendar spanning the project's observed business dates.
+    columns:
+      - name: date_key
+        data_tests:
+          - unique
+          - not_null
+      - name: full_date
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_model
+    description: One row per explicitly versioned source model reference entity.
+    columns:
+      - name: model_key
+        data_tests:
+          - unique
+          - not_null
+      - name: model_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_device
+    description: One row per source device reference entity.
+    columns:
+      - name: device_key
+        data_tests:
+          - unique
+          - not_null
+      - name: device_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_subscription_plan
+    description: One row per explicitly versioned source subscription plan.
+    columns:
+      - name: subscription_plan_key
+        data_tests:
+          - unique
+          - not_null
+      - name: plan_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_user
+    description: >
+      Hybrid SCD user dimension combining pre-snapshot CDC reconstruction with
+      ongoing dbt snapshot history at a non-overlapping snapshot cutover.
+    columns:
+      - name: user_key
+        description: Stable hash of user_id and the Type 2 version start timestamp.
+        data_tests:
+          - unique
+          - not_null
+      - name: user_id
+        data_tests:
+          - not_null
+
+  - name: fact_conversation
+    description: One row per conversation.
+    columns:
+      - name: conversation_id
+        data_tests: [unique, not_null]
+
+  - name: fact_message
+    description: One row per message.
+    columns:
+      - name: message_id
+        data_tests: [unique, not_null]
+
+  - name: fact_completion
+    description: One row per completion lifecycle.
+    columns:
+      - name: completion_id
+        data_tests: [unique, not_null]
+
+  - name: fact_model_inference
+    description: One row per model inference execution.
+    columns:
+      - name: inference_id
+        data_tests: [unique, not_null]
+
+  - name: fact_feedback
+    description: One row per feedback event.
+    columns:
+      - name: feedback_id
+        data_tests: [unique, not_null]
+
+  - name: fact_error
+    description: One row per error event, including context-light failures.
+    columns:
+      - name: error_id
+        data_tests: [unique, not_null]
+
+  - name: fact_subscription
+    description: One row per subscription lifecycle record.
+    columns:
+      - name: subscription_id
+        data_tests: [unique, not_null]
+
+  - name: fact_purchase
+    description: One row per purchase event.
+    columns:
+      - name: purchase_id
+        data_tests: [unique, not_null]
+
+  - name: fact_payment
+    description: One row per payment attempt; retries remain separate events.
+    columns:
+      - name: payment_id
+        data_tests: [unique, not_null]

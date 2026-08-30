@@ -1,0 +1,55 @@
+version: 2
+
+models:
+  - name: gold_product_metrics_daily
+    description: >
+      Daily product KPIs. Active users are distinct natural user IDs with at
+      least one message on the date.
+    columns:
+      - name: date_key
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+
+  - name: gold_finance_metrics_daily
+    description: Daily subscription, purchase, payment, revenue, and retry KPIs.
+    columns:
+      - name: date_key
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+
+  - name: gold_ml_metrics_daily
+    description: Daily inference KPIs at model-version grain, including unresolved models.
+    columns:
+      - name: date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+
+  - name: gold_user_activity_daily
+    description: >
+      Daily natural-user activity. active_flag is true only when message_count
+      is greater than zero.
+    columns:
+      - name: user_id
+        data_tests:
+          - not_null
+      - name: date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
