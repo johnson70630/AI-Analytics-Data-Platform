@@ -7,3 +7,5 @@ data/
 logs/
 target/
 *.duckdb
+*.duckdb.wal
+airflow/profiles/.user.yml

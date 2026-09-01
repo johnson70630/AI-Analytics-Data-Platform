@@ -1,0 +1,16 @@
+ai_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: 'ai_analytics.duckdb'   # local warehouse file, created automatically
+      schema: main
+      threads: 4
+      extensions:
+        - httpfs
+        - json
+      secrets:
+        - type: s3
+          region: "{{ env_var('AWS_DEFAULT_REGION', 'us-east-1') }}"
+          key_id: "{{ env_var('AWS_ACCESS_KEY_ID') }}"
+          secret: "{{ env_var('AWS_SECRET_ACCESS_KEY') }}"
