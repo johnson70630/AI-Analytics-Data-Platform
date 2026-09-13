@@ -74,7 +74,7 @@ select
     source_count,
     target_count,
     target_count - source_count as difference,
-    (target_count - source_count)::double / nullif(source_count, 0)
+    {{ as_double('(target_count - source_count)') }} / nullif(source_count, 0)
         as difference_pct,
     case when target_count = source_count then 'PASS' else 'FAIL' end as status
 from reconciliation_counts

@@ -10,9 +10,9 @@ subscription_end_daily as (
     select
         dates.date_key,
         count(*) as subscription_end_count,
-        count_if(subscriptions.subscription_status = 'CANCELLED')
+        {{ count_if("subscriptions.subscription_status = 'CANCELLED'") }}
             as cancelled_subscription_count,
-        count_if(subscriptions.subscription_status = 'EXPIRED')
+        {{ count_if("subscriptions.subscription_status = 'EXPIRED'") }}
             as expired_subscription_count
     from {{ ref('fact_subscription') }} as subscriptions
     inner join {{ ref('dim_date') }} as dates
@@ -25,13 +25,15 @@ purchase_daily as (
     select
         date_key,
         count(*) as purchase_count,
-        count_if(purchase_status = 'COMPLETED') as completed_purchase_count,
-        count_if(purchase_status = 'FAILED') as failed_purchase_count,
-        count_if(purchase_status = 'REFUNDED') as refunded_purchase_count,
-        count_if(purchase_type = 'NEW_SUBSCRIPTION')
+        {{ count_if("purchase_status = 'COMPLETED'") }}
+            as completed_purchase_count,
+        {{ count_if("purchase_status = 'FAILED'") }} as failed_purchase_count,
+        {{ count_if("purchase_status = 'REFUNDED'") }}
+            as refunded_purchase_count,
+        {{ count_if("purchase_type = 'NEW_SUBSCRIPTION'") }}
             as new_subscription_purchase_count,
-        count_if(purchase_type = 'RENEWAL') as renewal_purchase_count,
-        count_if(purchase_type = 'UPGRADE') as upgrade_purchase_count,
+        {{ count_if("purchase_type = 'RENEWAL'") }} as renewal_purchase_count,
+        {{ count_if("purchase_type = 'UPGRADE'") }} as upgrade_purchase_count,
         sum(subtotal_amount) filter (where purchase_status = 'COMPLETED')
             as completed_subtotal_amount,
         sum(discount_amount) filter (where purchase_status = 'COMPLETED')
@@ -48,9 +50,9 @@ payment_daily as (
     select
         date_key,
         count(*) as payment_attempt_count,
-        count_if(payment_status = 'SUCCESS') as successful_payment_count,
-        count_if(payment_status = 'FAILED') as failed_payment_count,
-        count_if(payment_status = 'REFUNDED') as refunded_payment_count,
+        {{ count_if("payment_status = 'SUCCESS'") }} as successful_payment_count,
+        {{ count_if("payment_status = 'FAILED'") }} as failed_payment_count,
+        {{ count_if("payment_status = 'REFUNDED'") }} as refunded_payment_count,
         sum(
             case
                 when payment_status in ('SUCCESS', 'REFUNDED')
@@ -76,7 +78,8 @@ retry_daily as (
     select
         first_payment_date_key as date_key,
         count(*) as purchases_with_payment_attempts,
-        count_if(attempt_count > 1) as purchases_with_multiple_payment_attempts,
+        {{ count_if('attempt_count > 1') }}
+            as purchases_with_multiple_payment_attempts,
         sum(greatest(attempt_count - 1, 0)) as retry_attempt_count
     from payment_attempts_per_purchase
     group by first_payment_date_key
@@ -135,7 +138,7 @@ select
     coalesce(payments.successful_payment_count, 0) as successful_payment_count,
     coalesce(payments.failed_payment_count, 0) as failed_payment_count,
     coalesce(payments.refunded_payment_count, 0) as refunded_payment_count,
-    coalesce(payments.successful_payment_count, 0)::double
+    {{ as_double('coalesce(payments.successful_payment_count, 0)') }}
         / nullif(payments.payment_attempt_count, 0) as payment_success_rate,
     coalesce(payments.gross_collected_amount, 0) as gross_collected_amount,
     coalesce(payments.refund_amount, 0) as refund_amount,
@@ -146,7 +149,9 @@ select
     coalesce(retries.purchases_with_multiple_payment_attempts, 0)
         as purchases_with_multiple_payment_attempts,
     coalesce(retries.retry_attempt_count, 0) as retry_attempt_count,
-    coalesce(retries.purchases_with_multiple_payment_attempts, 0)::double
+    {{ as_double(
+        'coalesce(retries.purchases_with_multiple_payment_attempts, 0)'
+    ) }}
         / nullif(retries.purchases_with_payment_attempts, 0)
         as retry_purchase_rate
 from date_spine as dates

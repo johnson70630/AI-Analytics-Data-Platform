@@ -15,6 +15,7 @@ models:
       +schema: silver
       staging:
         +materialized: view
+        +schema: "{{ 'staging' if target.type == 'postgres' else 'silver' }}"
     gold:
       +materialized: table
       +schema: gold

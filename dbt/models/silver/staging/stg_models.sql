@@ -4,9 +4,9 @@ with source_data as (
         cast(model_name as varchar) as model_name,
         cast(model_version as varchar) as model_version,
         cast(provider as varchar) as provider,
-        try_cast(release_date as date) as release_date,
-        try_cast(active_flag as boolean) as active_flag,
-        try_cast(dt as date) as physical_partition_date
+        {{ staging_cast('release_date', 'date') }} as release_date,
+        {{ staging_cast('active_flag', 'boolean') }} as active_flag,
+        {{ staging_partition_date() }} as physical_partition_date
     from {{ source('bronze', 'models') }}
 ),
 
@@ -15,7 +15,7 @@ ranked as (
         *,
         row_number() over (
             partition by model_id
-            order by physical_partition_date desc
+            order by physical_partition_date desc nulls last
         ) as snapshot_rank
     from source_data
 )

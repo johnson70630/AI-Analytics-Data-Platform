@@ -110,6 +110,50 @@ state_events as (
 ),
 
 reconstructed_states as (
+    {% if target.type == 'postgres' %}
+    select
+        events.user_id,
+        events.effective_start_at,
+        events.version_update_id,
+        events.type2_change_field,
+        (
+            select prior.country_code_value
+            from state_events as prior
+            where prior.user_id = events.user_id
+              and prior.country_code_value is not null
+              and (
+                  prior.effective_start_at < events.effective_start_at
+                  or (
+                      prior.effective_start_at = events.effective_start_at
+                      and coalesce(prior.version_update_id, '')
+                          <= coalesce(events.version_update_id, '')
+                  )
+              )
+            order by
+                prior.effective_start_at desc,
+                coalesce(prior.version_update_id, '') desc
+            limit 1
+        ) as country_code,
+        (
+            select prior.account_status_value
+            from state_events as prior
+            where prior.user_id = events.user_id
+              and prior.account_status_value is not null
+              and (
+                  prior.effective_start_at < events.effective_start_at
+                  or (
+                      prior.effective_start_at = events.effective_start_at
+                      and coalesce(prior.version_update_id, '')
+                          <= coalesce(events.version_update_id, '')
+                  )
+              )
+            order by
+                prior.effective_start_at desc,
+                coalesce(prior.version_update_id, '') desc
+            limit 1
+        ) as account_status
+    from state_events as events
+    {% else %}
     select
         user_id,
         effective_start_at,
@@ -126,6 +170,7 @@ reconstructed_states as (
             rows between unbounded preceding and current row
         ) as account_status
     from state_events
+    {% endif %}
 ),
 
 versioned_states as (

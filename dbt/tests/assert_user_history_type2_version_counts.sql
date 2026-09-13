@@ -1,10 +1,10 @@
 with expected_by_user as (
     select
         users.user_id,
-        1 + count_if(
-            updates.field_name in ('country_code', 'account_status')
-            and updates.old_value is distinct from updates.new_value
-        ) as expected_version_count
+        1 + {{ count_if(
+            "updates.field_name in ('country_code', 'account_status') and "
+            ~ "updates.old_value is distinct from updates.new_value"
+        ) }} as expected_version_count
     from {{ ref('stg_users') }} as users
     left join {{ ref('stg_user_updates') }} as updates
         on users.user_id = updates.user_id

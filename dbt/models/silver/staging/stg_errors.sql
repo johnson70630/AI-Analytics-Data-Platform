@@ -11,9 +11,9 @@ with source_data as (
         cast(error_type as varchar) as error_type,
         cast(error_code as varchar) as error_code,
         cast(severity as varchar) as severity,
-        try_cast(occurred_at as timestamp) as occurred_at,
-        try_cast(ingested_at as timestamp) as ingested_at,
-        try_cast(dt as date) as physical_partition_date
+        {{ staging_cast('occurred_at', 'timestamp') }} as occurred_at,
+        {{ staging_cast('ingested_at', 'timestamp') }} as ingested_at,
+        {{ staging_partition_date() }} as physical_partition_date
     from {{ source('bronze', 'errors') }}
 ),
 
@@ -22,7 +22,9 @@ ranked as (
         *,
         row_number() over (
             partition by error_id
-            order by ingested_at asc, physical_partition_date asc
+            order by
+                ingested_at asc nulls last,
+                physical_partition_date asc nulls last
         ) as replay_rank
     from source_data
 )

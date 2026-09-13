@@ -6,8 +6,8 @@ with source_users as (
 dimension_summary as (
     select
         user_id,
-        count_if(is_current) as current_row_count,
-        count_if(effective_end_at is null) as open_row_count
+        {{ count_if('is_current') }} as current_row_count,
+        {{ count_if('effective_end_at is null') }} as open_row_count
     from {{ ref('dim_user') }}
     group by user_id
 )

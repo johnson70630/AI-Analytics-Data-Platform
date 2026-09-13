@@ -6,9 +6,9 @@ with source_data as (
         cast(country_code as varchar) as country_code,
         cast(account_status as varchar) as account_status,
         cast(signup_source as varchar) as signup_source,
-        try_cast(signup_at as timestamp) as signup_at,
-        try_cast(ingested_at as timestamp) as ingested_at,
-        try_cast(dt as date) as physical_partition_date
+        {{ staging_cast('signup_at', 'timestamp') }} as signup_at,
+        {{ staging_cast('ingested_at', 'timestamp') }} as ingested_at,
+        {{ staging_partition_date() }} as physical_partition_date
     from {{ source('bronze', 'users') }}
 ),
 
@@ -17,7 +17,9 @@ ranked as (
         *,
         row_number() over (
             partition by user_id
-            order by ingested_at asc, physical_partition_date asc
+            order by
+                ingested_at asc nulls last,
+                physical_partition_date asc nulls last
         ) as replay_rank
     from source_data
 )

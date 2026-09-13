@@ -4,8 +4,12 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    AIRFLOW__CORE__DEFAULT_TIMEZONE: utc
+    AIRFLOW__CORE__DEFAULT_TIMEZONE: America/Los_Angeles
+    AIRFLOW__WEBSERVER__SECRET_KEY: local-airflow-log-signing-key
     DBT_PROFILES_DIR: /opt/airflow/dbt_profile
+    WAREHOUSE_POSTGRES_USER: ${WAREHOUSE_POSTGRES_USER:-ai_analytics}
+    WAREHOUSE_POSTGRES_PASSWORD: ${WAREHOUSE_POSTGRES_PASSWORD:-ai_analytics_local}
+    WAREHOUSE_POSTGRES_DB: ${WAREHOUSE_POSTGRES_DB:-ai_analytics}
   env_file:
     - ../.env
   volumes:
@@ -13,11 +17,19 @@ x-airflow-common: &airflow-common
     - ./logs:/opt/airflow/logs
     - ./profiles:/opt/airflow/dbt_profile
     - ../dbt:/opt/airflow/dbt_project
+    - ../src:/opt/airflow/src:ro
   depends_on:
     postgres:
       condition: service_healthy
 
 services:
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    restart: always
+
   postgres:
     image: postgres:16
     environment:
@@ -30,6 +42,23 @@ services:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 5s
       retries: 5
+    restart: always
+
+  postgres-warehouse:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${WAREHOUSE_POSTGRES_USER:-ai_analytics}
+      POSTGRES_PASSWORD: ${WAREHOUSE_POSTGRES_PASSWORD:-ai_analytics_local}
+      POSTGRES_DB: ${WAREHOUSE_POSTGRES_DB:-ai_analytics}
+    ports:
+      - "5433:5432"
+    volumes:
+      - warehouse-postgres-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: always
 
   airflow-init:
@@ -59,3 +88,4 @@ services:
 
 volumes:
   postgres-db-volume:
+  warehouse-postgres-volume:

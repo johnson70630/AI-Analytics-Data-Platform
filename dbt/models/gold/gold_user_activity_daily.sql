@@ -23,7 +23,8 @@ completion_user_daily as (
         user_id,
         date_key,
         count(*) as completion_count,
-        count_if(completion_status = 'SUCCESS') as successful_completion_count
+        {{ count_if("completion_status = 'SUCCESS'") }}
+            as successful_completion_count
     from {{ ref('fact_completion') }}
     where user_id is not null and date_key is not null
     group by user_id, date_key
@@ -34,10 +35,10 @@ feedback_user_daily as (
         user_id,
         date_key,
         count(*) as feedback_count,
-        count_if(
-            feedback_type = 'THUMBS_UP'
-            or (feedback_type = 'RATING' and feedback_score >= 4)
-        ) as positive_feedback_count
+        {{ count_if(
+            "feedback_type = 'THUMBS_UP' "
+            ~ "or (feedback_type = 'RATING' and feedback_score >= 4)"
+        ) }} as positive_feedback_count
     from {{ ref('fact_feedback') }}
     where user_id is not null and date_key is not null
     group by user_id, date_key

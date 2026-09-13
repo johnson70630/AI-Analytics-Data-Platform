@@ -72,9 +72,9 @@ daily_baselines as (
 daily_changes as (
     select
         *,
-        (row_count - previous_day_row_count)::double
+        {{ as_double('(row_count - previous_day_row_count)') }}
             / nullif(previous_day_row_count, 0) as previous_day_change_pct,
-        (row_count - rolling_7_day_average)::double
+        {{ as_double('(row_count - rolling_7_day_average)') }}
             / nullif(rolling_7_day_average, 0) as rolling_7_day_change_pct
     from daily_baselines
 )
@@ -88,7 +88,7 @@ select
     rolling_7_day_average,
     previous_day_change_pct,
     rolling_7_day_change_pct,
-    {{ volume_warning_pct }}::double as volume_warning_threshold_pct,
+    {{ as_double(volume_warning_pct) }} as volume_warning_threshold_pct,
     case
         when rolling_7_day_average is null then 'PASS'
         when rolling_7_day_average = 0 and row_count > 0 then 'WARN'
