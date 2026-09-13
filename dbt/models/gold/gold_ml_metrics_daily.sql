@@ -4,18 +4,20 @@ with inference_daily as (
         model_key,
         model_id,
         count(*) as inference_count,
-        count_if(inference_status = 'SUCCESS') as successful_inference_count,
-        count_if(inference_status = 'FAILED') as failed_inference_count,
+        {{ count_if("inference_status = 'SUCCESS'") }}
+            as successful_inference_count,
+        {{ count_if("inference_status = 'FAILED'") }}
+            as failed_inference_count,
         avg(latency_ms) filter (
             where is_timestamp_order_valid and latency_ms >= 0
         ) as average_latency_ms,
-        quantile_cont(latency_ms, 0.50) filter (
+        {{ continuous_percentile('latency_ms', 0.50) }} filter (
             where is_timestamp_order_valid and latency_ms >= 0
         ) as p50_latency_ms,
-        quantile_cont(latency_ms, 0.95) filter (
+        {{ continuous_percentile('latency_ms', 0.95) }} filter (
             where is_timestamp_order_valid and latency_ms >= 0
         ) as p95_latency_ms,
-        quantile_cont(latency_ms, 0.99) filter (
+        {{ continuous_percentile('latency_ms', 0.99) }} filter (
             where is_timestamp_order_valid and latency_ms >= 0
         ) as p99_latency_ms,
         sum(input_tokens) as total_input_tokens,
@@ -38,7 +40,7 @@ select
     inference.inference_count,
     inference.successful_inference_count,
     inference.failed_inference_count,
-    inference.successful_inference_count::double
+    {{ as_double('inference.successful_inference_count') }}
         / nullif(inference.inference_count, 0) as inference_success_rate,
     inference.average_latency_ms,
     inference.p50_latency_ms,

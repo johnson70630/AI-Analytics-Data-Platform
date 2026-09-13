@@ -6,14 +6,17 @@ with source_data as (
         cast(plan_id as varchar) as plan_id,
         cast(purchase_type as varchar) as purchase_type,
         cast(purchase_status as varchar) as purchase_status,
-        try_cast(subtotal_amount as decimal(18, 2)) as subtotal_amount,
-        try_cast(discount_amount as decimal(18, 2)) as discount_amount,
-        try_cast(tax_amount as decimal(18, 2)) as tax_amount,
-        try_cast(total_amount as decimal(18, 2)) as total_amount,
-        try_cast(purchase_created_at as timestamp) as purchase_created_at,
-        try_cast(updated_at as timestamp) as updated_at,
-        try_cast(ingested_at as timestamp) as ingested_at,
-        try_cast(dt as date) as physical_partition_date
+        {{ staging_cast('subtotal_amount', 'decimal(18, 2)') }}
+            as subtotal_amount,
+        {{ staging_cast('discount_amount', 'decimal(18, 2)') }}
+            as discount_amount,
+        {{ staging_cast('tax_amount', 'decimal(18, 2)') }} as tax_amount,
+        {{ staging_cast('total_amount', 'decimal(18, 2)') }} as total_amount,
+        {{ staging_cast('purchase_created_at', 'timestamp') }}
+            as purchase_created_at,
+        {{ staging_cast('updated_at', 'timestamp') }} as updated_at,
+        {{ staging_cast('ingested_at', 'timestamp') }} as ingested_at,
+        {{ staging_partition_date() }} as physical_partition_date
     from {{ source('bronze', 'purchases') }}
 ),
 
@@ -22,7 +25,9 @@ ranked as (
         *,
         row_number() over (
             partition by purchase_id
-            order by ingested_at asc, physical_partition_date asc
+            order by
+                ingested_at asc nulls last,
+                physical_partition_date asc nulls last
         ) as replay_rank
     from source_data
 )

@@ -79,19 +79,17 @@ select
     observations.latest_partition_date,
     reference.project_max_activity_at as monitoring_reference_at,
     current_timestamp as monitoring_run_at,
-    date_diff(
-        'second',
-        observations.latest_event_at,
-        reference.project_max_activity_at
-    ) / 3600.0 as freshness_delay_hours,
-    {{ freshness_warn_hours }}::double as freshness_warning_threshold_hours,
+    {{ date_diff_seconds(
+        'observations.latest_event_at',
+        'reference.project_max_activity_at'
+    ) }} / 3600.0 as freshness_delay_hours,
+    {{ as_double(freshness_warn_hours) }} as freshness_warning_threshold_hours,
     case
         when observations.latest_event_at is null then 'FAIL'
-        when date_diff(
-            'second',
-            observations.latest_event_at,
-            reference.project_max_activity_at
-        ) / 3600.0 > {{ freshness_warn_hours }} then 'WARN'
+        when {{ date_diff_seconds(
+            'observations.latest_event_at',
+            'reference.project_max_activity_at'
+        ) }} / 3600.0 > {{ freshness_warn_hours }} then 'WARN'
         else 'PASS'
     end as freshness_status
 from entity_observations as observations

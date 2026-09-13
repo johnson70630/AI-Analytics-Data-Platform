@@ -1,5 +1,5 @@
 ai_analytics:
-  target: dev
+  target: postgres_dev
   outputs:
     dev:
       type: duckdb
@@ -14,3 +14,12 @@ ai_analytics:
           region: "{{ env_var('AWS_DEFAULT_REGION', 'us-east-1') }}"
           key_id: "{{ env_var('AWS_ACCESS_KEY_ID') }}"
           secret: "{{ env_var('AWS_SECRET_ACCESS_KEY') }}"
+    postgres_dev:
+      type: postgres
+      host: postgres-warehouse
+      port: 5432
+      user: "{{ env_var('WAREHOUSE_POSTGRES_USER') }}"
+      password: "{{ env_var('WAREHOUSE_POSTGRES_PASSWORD') }}"
+      dbname: "{{ env_var('WAREHOUSE_POSTGRES_DB') }}"
+      schema: public
+      threads: 4

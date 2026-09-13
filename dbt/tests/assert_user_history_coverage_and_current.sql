@@ -7,7 +7,7 @@ history_by_user as (
     select
         user_id,
         count(*) as version_count,
-        count_if(is_current) as current_count
+        {{ count_if('is_current') }} as current_count
     from {{ ref('user_state_history') }}
     group by user_id
 )

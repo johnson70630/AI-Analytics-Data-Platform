@@ -5,11 +5,11 @@ with source_data as (
         cast(conversation_id as varchar) as conversation_id,
         cast(user_id as varchar) as source_user_id,
         cast(completion_status as varchar) as completion_status,
-        try_cast(requested_at as timestamp) as requested_at,
-        try_cast(completed_at as timestamp) as completed_at,
+        {{ staging_cast('requested_at', 'timestamp') }} as requested_at,
+        {{ staging_cast('completed_at', 'timestamp') }} as completed_at,
         cast(response_text as varchar) as response_text,
-        try_cast(ingested_at as timestamp) as ingested_at,
-        try_cast(dt as date) as physical_partition_date
+        {{ staging_cast('ingested_at', 'timestamp') }} as ingested_at,
+        {{ staging_partition_date() }} as physical_partition_date
     from {{ source('bronze', 'completions') }}
 ),
 
@@ -18,7 +18,9 @@ ranked as (
         *,
         row_number() over (
             partition by completion_id
-            order by ingested_at asc, physical_partition_date asc
+            order by
+                ingested_at asc nulls last,
+                physical_partition_date asc nulls last
         ) as replay_rank
     from source_data
 ),

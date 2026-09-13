@@ -3,14 +3,14 @@ with source_data as (
         cast(subscription_id as varchar) as subscription_id,
         cast(user_id as varchar) as user_id,
         cast(plan_id as varchar) as plan_id,
-        try_cast(started_at as timestamp) as started_at,
-        try_cast(ended_at as timestamp) as ended_at,
+        {{ staging_cast('started_at', 'timestamp') }} as started_at,
+        {{ staging_cast('ended_at', 'timestamp') }} as ended_at,
         cast(subscription_status as varchar) as subscription_status,
-        try_cast(actual_monthly_price as decimal(18, 2))
+        {{ staging_cast('actual_monthly_price', 'decimal(18, 2)') }}
             as actual_monthly_price,
-        try_cast(updated_at as timestamp) as updated_at,
-        try_cast(ingested_at as timestamp) as ingested_at,
-        try_cast(dt as date) as physical_partition_date
+        {{ staging_cast('updated_at', 'timestamp') }} as updated_at,
+        {{ staging_cast('ingested_at', 'timestamp') }} as ingested_at,
+        {{ staging_partition_date() }} as physical_partition_date
     from {{ source('bronze', 'subscriptions') }}
 ),
 
@@ -19,7 +19,9 @@ ranked as (
         *,
         row_number() over (
             partition by subscription_id
-            order by ingested_at asc, physical_partition_date asc
+            order by
+                ingested_at asc nulls last,
+                physical_partition_date asc nulls last
         ) as replay_rank
     from source_data
 )

@@ -5,7 +5,7 @@ with source_data as (
         cast(operating_system as varchar) as operating_system,
         cast(browser as varchar) as browser,
         cast(app_platform as varchar) as app_platform,
-        try_cast(dt as date) as physical_partition_date
+        {{ staging_partition_date() }} as physical_partition_date
     from {{ source('bronze', 'devices') }}
 ),
 
@@ -14,7 +14,7 @@ ranked as (
         *,
         row_number() over (
             partition by device_id
-            order by physical_partition_date desc
+            order by physical_partition_date desc nulls last
         ) as snapshot_rank
     from source_data
 )

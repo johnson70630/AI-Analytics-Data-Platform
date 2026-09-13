@@ -5,13 +5,15 @@ with source_data as (
         cast(user_id as varchar) as user_id,
         cast(payment_status as varchar) as payment_status,
         cast(payment_method as varchar) as payment_method,
-        try_cast(payment_amount as decimal(18, 2)) as payment_amount,
-        try_cast(refund_amount as decimal(18, 2)) as refund_amount,
-        try_cast(processed_at as timestamp) as processed_at,
-        try_cast(refunded_at as timestamp) as refunded_at,
-        try_cast(updated_at as timestamp) as updated_at,
-        try_cast(ingested_at as timestamp) as ingested_at,
-        try_cast(dt as date) as physical_partition_date
+        {{ staging_cast('payment_amount', 'decimal(18, 2)') }}
+            as payment_amount,
+        {{ staging_cast('refund_amount', 'decimal(18, 2)') }}
+            as refund_amount,
+        {{ staging_cast('processed_at', 'timestamp') }} as processed_at,
+        {{ staging_cast('refunded_at', 'timestamp') }} as refunded_at,
+        {{ staging_cast('updated_at', 'timestamp') }} as updated_at,
+        {{ staging_cast('ingested_at', 'timestamp') }} as ingested_at,
+        {{ staging_partition_date() }} as physical_partition_date
     from {{ source('bronze', 'payments') }}
 ),
 
@@ -20,7 +22,9 @@ ranked as (
         *,
         row_number() over (
             partition by payment_id
-            order by ingested_at asc, physical_partition_date asc
+            order by
+                ingested_at asc nulls last,
+                physical_partition_date asc nulls last
         ) as replay_rank
     from source_data
 ),

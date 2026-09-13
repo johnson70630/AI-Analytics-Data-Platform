@@ -1,7 +1,7 @@
 with user_daily as (
     select
         date_key,
-        count_if(active_flag) as active_users
+        {{ count_if('active_flag') }} as active_users
     from {{ ref('gold_user_activity_daily') }}
     group by date_key
 )

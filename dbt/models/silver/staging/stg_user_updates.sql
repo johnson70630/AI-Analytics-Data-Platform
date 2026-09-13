@@ -5,9 +5,9 @@ with source_data as (
         cast(field_name as varchar) as field_name,
         cast(old_value as varchar) as old_value,
         cast(new_value as varchar) as new_value,
-        try_cast(updated_at as timestamp) as updated_at,
-        try_cast(ingested_at as timestamp) as ingested_at,
-        try_cast(dt as date) as physical_partition_date
+        {{ staging_cast('updated_at', 'timestamp') }} as updated_at,
+        {{ staging_cast('ingested_at', 'timestamp') }} as ingested_at,
+        {{ staging_partition_date() }} as physical_partition_date
     from {{ source('bronze', 'user_updates') }}
 ),
 
@@ -16,7 +16,9 @@ ranked as (
         *,
         row_number() over (
             partition by update_id
-            order by ingested_at asc, physical_partition_date asc
+            order by
+                ingested_at asc nulls last,
+                physical_partition_date asc nulls last
         ) as replay_rank
     from source_data
 )

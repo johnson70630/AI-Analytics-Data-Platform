@@ -11,4 +11,5 @@ select
     maximum_date,
     actual_date_count
 from date_summary
-where actual_date_count != datediff('day', minimum_date, maximum_date) + 1
+where actual_date_count
+    != {{ date_diff_days('minimum_date', 'maximum_date') }} + 1

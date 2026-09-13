@@ -46,9 +46,12 @@ completion_daily as (
     select
         date_key,
         count(*) as completion_count,
-        count_if(completion_status = 'SUCCESS') as successful_completion_count,
-        count_if(completion_status = 'FAILED') as failed_completion_count,
-        count_if(completion_status = 'CANCELLED') as cancelled_completion_count
+        {{ count_if("completion_status = 'SUCCESS'") }}
+            as successful_completion_count,
+        {{ count_if("completion_status = 'FAILED'") }}
+            as failed_completion_count,
+        {{ count_if("completion_status = 'CANCELLED'") }}
+            as cancelled_completion_count
     from {{ ref('fact_completion') }}
     group by date_key
 ),
@@ -57,14 +60,14 @@ feedback_daily as (
     select
         date_key,
         count(*) as feedback_count,
-        count_if(
-            feedback_type = 'THUMBS_UP'
-            or (feedback_type = 'RATING' and feedback_score >= 4)
-        ) as positive_feedback_count,
-        count_if(
-            feedback_type = 'THUMBS_DOWN'
-            or (feedback_type = 'RATING' and feedback_score <= 2)
-        ) as negative_feedback_count
+        {{ count_if(
+            "feedback_type = 'THUMBS_UP' "
+            ~ "or (feedback_type = 'RATING' and feedback_score >= 4)"
+        ) }} as positive_feedback_count,
+        {{ count_if(
+            "feedback_type = 'THUMBS_DOWN' "
+            ~ "or (feedback_type = 'RATING' and feedback_score <= 2)"
+        ) }} as negative_feedback_count
     from {{ ref('fact_feedback') }}
     group by date_key
 )
@@ -82,14 +85,14 @@ select
         as failed_completion_count,
     coalesce(completions.cancelled_completion_count, 0)
         as cancelled_completion_count,
-    coalesce(completions.successful_completion_count, 0)::double
+    {{ as_double('coalesce(completions.successful_completion_count, 0)') }}
         / nullif(completions.completion_count, 0) as completion_success_rate,
     coalesce(feedback.feedback_count, 0) as feedback_count,
     coalesce(feedback.positive_feedback_count, 0) as positive_feedback_count,
     coalesce(feedback.negative_feedback_count, 0) as negative_feedback_count,
-    coalesce(feedback.feedback_count, 0)::double
+    {{ as_double('coalesce(feedback.feedback_count, 0)') }}
         / nullif(completions.completion_count, 0) as feedback_rate,
-    coalesce(feedback.positive_feedback_count, 0)::double
+    {{ as_double('coalesce(feedback.positive_feedback_count, 0)') }}
         / nullif(feedback.feedback_count, 0) as positive_feedback_rate
 from date_spine as dates
 left join message_daily as messages using (date_key)
