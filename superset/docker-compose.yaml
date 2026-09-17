@@ -1,0 +1,76 @@
+services:
+  superset:
+    image: apache/superset:5.0.0
+    user: root
+    env_file:
+      - ./.env
+    environment:
+      SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+      SUPERSET_HOME: /app/superset_home
+    ports:
+      - "8088:8088"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py:ro
+      - superset-home:/app/superset_home
+    entrypoint:
+      - /bin/bash
+      - -c
+    command:
+      - |
+        set -euo pipefail
+
+        : "$${SUPERSET_SECRET_KEY:?SUPERSET_SECRET_KEY is required}"
+        : "$${SUPERSET_ADMIN_USERNAME:?SUPERSET_ADMIN_USERNAME is required}"
+        : "$${SUPERSET_ADMIN_PASSWORD:?SUPERSET_ADMIN_PASSWORD is required}"
+        : "$${SUPERSET_ADMIN_FIRSTNAME:?SUPERSET_ADMIN_FIRSTNAME is required}"
+        : "$${SUPERSET_ADMIN_LASTNAME:?SUPERSET_ADMIN_LASTNAME is required}"
+        : "$${SUPERSET_ADMIN_EMAIL:?SUPERSET_ADMIN_EMAIL is required}"
+
+        if ! /app/.venv/bin/python -c "import psycopg2" 2>/dev/null; then
+          uv pip install --link-mode=copy \
+            --python /app/.venv/bin/python \
+            psycopg2-binary==2.9.10
+        fi
+        chown -R superset:superset /app/superset_home
+
+        runuser -u superset --preserve-environment -- \
+          /app/.venv/bin/superset db upgrade
+
+        if runuser -u superset --preserve-environment -- \
+          /app/.venv/bin/superset fab list-users \
+          | grep -Fq "$${SUPERSET_ADMIN_USERNAME}"; then
+          echo "Superset admin user already exists"
+        else
+          runuser -u superset --preserve-environment -- \
+            /app/.venv/bin/superset fab create-admin \
+            --username "$${SUPERSET_ADMIN_USERNAME}" \
+            --password "$${SUPERSET_ADMIN_PASSWORD}" \
+            --firstname "$${SUPERSET_ADMIN_FIRSTNAME}" \
+            --lastname "$${SUPERSET_ADMIN_LASTNAME}" \
+            --email "$${SUPERSET_ADMIN_EMAIL}"
+        fi
+
+        runuser -u superset --preserve-environment -- \
+          /app/.venv/bin/superset init
+
+        exec runuser -u superset --preserve-environment -- \
+          /app/.venv/bin/superset run \
+          --host 0.0.0.0 \
+          --port 8088
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          /app/.venv/bin/python -c
+          "import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8088/health', timeout=5)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+
+volumes:
+  superset-home:
