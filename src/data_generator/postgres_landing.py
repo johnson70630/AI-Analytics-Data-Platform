@@ -9,8 +9,9 @@ import json
 import os
 import re
 import time
+from collections import Counter
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Iterable, Sequence
 
@@ -281,6 +282,9 @@ class LoadResult:
     rows: int
     elapsed_seconds: float
     representative_checks: int
+    partitions: int = 0
+    partition_dates: tuple[date, ...] = ()
+    reprocessed: bool = False
 
 
 def partition_date_from_key(key: str, entity: str | None = None) -> date:
@@ -330,6 +334,93 @@ def list_bronze_keys(client: Any, bucket: str, entity: str) -> list[str]:
     except (BotoCoreError, ClientError, OSError) as exc:
         raise RuntimeError(f"Failed to list s3://{bucket}/{prefix}: {exc}") from exc
     return sorted(keys)
+
+
+def list_bronze_partition_dates(
+    client: Any,
+    bucket: str,
+    entity: str,
+) -> list[date]:
+    """Discover entity partition folders without downloading their objects."""
+    prefix = f"bronze/{entity}/"
+    dates = set()
+    try:
+        paginator = client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(
+            Bucket=bucket,
+            Prefix=prefix,
+            Delimiter="/",
+        ):
+            for item in page.get("CommonPrefixes", []):
+                partition_prefix = item.get("Prefix", "")
+                if not partition_prefix.startswith(prefix + "dt="):
+                    continue
+                value = partition_prefix.removeprefix(prefix + "dt=").rstrip("/")
+                try:
+                    dates.add(date.fromisoformat(value))
+                except ValueError as exc:
+                    raise ValueError(
+                        f"Invalid Bronze partition prefix: {partition_prefix}"
+                    ) from exc
+    except (BotoCoreError, ClientError, OSError) as exc:
+        raise RuntimeError(f"Failed to list s3://{bucket}/{prefix}: {exc}") from exc
+    return sorted(dates)
+
+
+def list_bronze_partition_keys(
+    client: Any,
+    bucket: str,
+    entity: str,
+    partition_date: date,
+) -> list[str]:
+    """List only the objects in one exact entity/date partition."""
+    prefix = f"bronze/{entity}/dt={partition_date.isoformat()}/"
+    keys = []
+    try:
+        paginator = client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+            keys.extend(
+                item["Key"]
+                for item in page.get("Contents", [])
+                if item["Key"].endswith(".json")
+            )
+    except (BotoCoreError, ClientError, OSError) as exc:
+        raise RuntimeError(f"Failed to list s3://{bucket}/{prefix}: {exc}") from exc
+    return sorted(keys)
+
+
+def select_incremental_dates(
+    available_dates: Sequence[date],
+    watermark: date | None,
+    *,
+    lookback_days: int = 0,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> tuple[list[date], bool]:
+    """Select append dates or a bounded transactional reprocessing window."""
+    available = sorted(set(available_dates))
+    if start_date is not None or end_date is not None:
+        lower = start_date or date.min
+        upper = end_date or date.max
+        return [value for value in available if lower <= value <= upper], True
+    if lookback_days:
+        if watermark is None:
+            return available, False
+        anchor = max(watermark, max(available, default=watermark))
+        lower = anchor - timedelta(days=lookback_days)
+        return [value for value in available if value >= lower], True
+    if watermark is None:
+        return available, False
+    return [value for value in available if value > watermark], False
+
+
+def get_entity_watermark(cursor: Any, entity: str) -> date | None:
+    """Use the landing table's physical partition date as its watermark."""
+    cursor.execute(
+        f'SELECT MAX(source_partition_date) '
+        f'FROM "{LANDING_SCHEMA}"."{entity}"'
+    )
+    return cursor.fetchone()[0]
 
 
 def create_table_sql(spec: EntitySpec) -> str:
@@ -475,6 +566,54 @@ def _validate_representatives(
     return checked
 
 
+def _validate_partition_physical_shape(
+    cursor: Any,
+    spec: EntitySpec,
+    partition_dates: Sequence[date],
+    expected_null_counts: Counter[str],
+    expected_source_files: Counter[str],
+) -> None:
+    """Reconcile physical NULL and source-file counts for loaded partitions."""
+    cursor.execute(
+        f'SELECT source_file, COUNT(*) '
+        f'FROM "{LANDING_SCHEMA}"."{spec.name}" '
+        "WHERE source_partition_date = ANY(%s) "
+        "GROUP BY source_file",
+        (list(partition_dates),),
+    )
+    actual_source_files = Counter(dict(cursor.fetchall()))
+    if actual_source_files != expected_source_files:
+        raise ValueError(
+            f"{spec.name} source_file reconciliation failed: "
+            f"PostgreSQL={dict(actual_source_files)}, "
+            f"S3={dict(expected_source_files)}"
+        )
+
+    null_expressions = ", ".join(
+        f'SUM(CASE WHEN "{name}" IS NULL THEN 1 ELSE 0 END)'
+        for name in spec.source_column_names
+    )
+    cursor.execute(
+        f'SELECT {null_expressions} '
+        f'FROM "{LANDING_SCHEMA}"."{spec.name}" '
+        "WHERE source_partition_date = ANY(%s)",
+        (list(partition_dates),),
+    )
+    actual_values = cursor.fetchone()
+    actual_null_counts = Counter(
+        {
+            name: int(value or 0)
+            for name, value in zip(spec.source_column_names, actual_values)
+        }
+    )
+    if actual_null_counts != expected_null_counts:
+        raise ValueError(
+            f"{spec.name} NULL reconciliation failed: "
+            f"PostgreSQL={dict(actual_null_counts)}, "
+            f"S3={dict(expected_null_counts)}"
+        )
+
+
 def load_entity(
     connection: Any,
     s3_client: Any,
@@ -495,8 +634,6 @@ def load_entity(
 
     started = time.monotonic()
     loaded_at = datetime.now(timezone.utc)
-    expected_count = EXPECTED_BRONZE_COUNTS[entity]
-    sample_indexes = {0, expected_count // 2, expected_count - 1}
     representatives: list[tuple[Any, ...]] = []
     batch: list[tuple[Any, ...]] = []
     rows_loaded = 0
@@ -506,13 +643,14 @@ def load_entity(
             cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{LANDING_SCHEMA}"')
             cursor.execute(create_table_sql(spec))
             cursor.execute(f'TRUNCATE TABLE "{LANDING_SCHEMA}"."{entity}"')
-            for key in keys:
+            sample_key_indexes = {0, len(keys) // 2, len(keys) - 1}
+            for key_index, key in enumerate(keys):
                 object_rows = _read_s3_object_rows(
                     s3_client, bucket, key, spec, loaded_at
                 )
+                if key_index in sample_key_indexes and object_rows:
+                    representatives.append(object_rows[len(object_rows) // 2])
                 for row in object_rows:
-                    if rows_loaded in sample_indexes:
-                        representatives.append(row)
                     batch.append(row)
                     rows_loaded += 1
                     if len(batch) >= batch_size:
@@ -522,10 +660,10 @@ def load_entity(
                 f'SELECT COUNT(*) FROM "{LANDING_SCHEMA}"."{entity}"'
             )
             database_count = cursor.fetchone()[0]
-            if rows_loaded != expected_count or database_count != expected_count:
+            if database_count != rows_loaded:
                 raise ValueError(
                     f"{entity} count mismatch: S3={rows_loaded:,}, "
-                    f"PostgreSQL={database_count:,}, expected={expected_count:,}"
+                    f"PostgreSQL={database_count:,}"
                 )
             representative_checks = _validate_representatives(
                 cursor, spec, representatives
@@ -546,6 +684,165 @@ def load_entity(
     print(
         f"PASS entity={entity} files={result.files:,} rows={result.rows:,} "
         f"seconds={result.elapsed_seconds:.2f} "
+        f"content_checks={result.representative_checks}"
+    )
+    return result
+
+
+def load_entity_incremental(
+    connection: Any,
+    s3_client: Any,
+    bucket: str,
+    entity: str,
+    *,
+    batch_size: int = COPY_BATCH_SIZE,
+    lookback_days: int = 0,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> LoadResult:
+    """Append or transactionally reprocess selected Bronze partitions."""
+    if entity not in ENTITY_SPECS:
+        raise ValueError(f"Unsupported entity: {entity}")
+    if batch_size < 1:
+        raise ValueError("batch_size must be positive")
+    if lookback_days < 0:
+        raise ValueError("lookback_days cannot be negative")
+    if start_date and end_date and start_date > end_date:
+        raise ValueError("start_date cannot be after end_date")
+
+    spec = ENTITY_SPECS[entity]
+    available_dates = list_bronze_partition_dates(s3_client, bucket, entity)
+    started = time.monotonic()
+    loaded_at = datetime.now(timezone.utc)
+    rows_loaded = 0
+    representatives: list[tuple[Any, ...]] = []
+    files = 0
+    expected_null_counts: Counter[str] = Counter(
+        {name: 0 for name in spec.source_column_names}
+    )
+    expected_source_files: Counter[str] = Counter()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{LANDING_SCHEMA}"')
+            cursor.execute(create_table_sql(spec))
+            watermark = get_entity_watermark(cursor, entity)
+            selected_dates, reprocessed = select_incremental_dates(
+                available_dates,
+                watermark,
+                lookback_days=lookback_days,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            if not selected_dates:
+                connection.commit()
+                result = LoadResult(
+                    entity=entity,
+                    files=0,
+                    rows=0,
+                    elapsed_seconds=time.monotonic() - started,
+                    representative_checks=0,
+                    partitions=0,
+                    partition_dates=(),
+                    reprocessed=False,
+                )
+                print(
+                    f"NOOP entity={entity} watermark={watermark} "
+                    "partitions=0 files=0 rows=0"
+                )
+                return result
+
+            keys_by_date = {
+                partition: list_bronze_partition_keys(
+                    s3_client, bucket, entity, partition
+                )
+                for partition in selected_dates
+            }
+            missing_objects = [
+                partition
+                for partition, keys in keys_by_date.items()
+                if not keys
+            ]
+            if missing_objects:
+                raise RuntimeError(
+                    f"No Bronze objects found for {entity} partitions: "
+                    + ", ".join(map(str, missing_objects))
+                )
+
+            if reprocessed:
+                cursor.execute(
+                    f'DELETE FROM "{LANDING_SCHEMA}"."{entity}" '
+                    "WHERE source_partition_date = ANY(%s)",
+                    (selected_dates,),
+                )
+
+            batch: list[tuple[Any, ...]] = []
+            for partition in selected_dates:
+                for key in keys_by_date[partition]:
+                    object_rows = _read_s3_object_rows(
+                        s3_client,
+                        bucket,
+                        key,
+                        spec,
+                        loaded_at,
+                    )
+                    files += 1
+                    if object_rows:
+                        representatives.append(object_rows[len(object_rows) // 2])
+                    for row in object_rows:
+                        expected_source_files[row[-2]] += 1
+                        for index, name in enumerate(spec.source_column_names):
+                            if row[index] is None:
+                                expected_null_counts[name] += 1
+                        batch.append(row)
+                        rows_loaded += 1
+                        if len(batch) >= batch_size:
+                            _flush_copy_batch(cursor, spec, batch)
+            _flush_copy_batch(cursor, spec, batch)
+
+            cursor.execute(
+                f'SELECT COUNT(*) FROM "{LANDING_SCHEMA}"."{entity}" '
+                "WHERE source_partition_date = ANY(%s)",
+                (selected_dates,),
+            )
+            database_count = cursor.fetchone()[0]
+            if database_count != rows_loaded:
+                raise ValueError(
+                    f"{entity} partition count mismatch: S3={rows_loaded:,}, "
+                    f"PostgreSQL={database_count:,}"
+                )
+            _validate_partition_physical_shape(
+                cursor,
+                spec,
+                selected_dates,
+                expected_null_counts,
+                expected_source_files,
+            )
+            representative_checks = _validate_representatives(
+                cursor,
+                spec,
+                representatives,
+            )
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+
+    result = LoadResult(
+        entity=entity,
+        files=files,
+        rows=rows_loaded,
+        elapsed_seconds=time.monotonic() - started,
+        representative_checks=representative_checks,
+        partitions=len(selected_dates),
+        partition_dates=tuple(selected_dates),
+        reprocessed=reprocessed,
+    )
+    action = "REPROCESS" if reprocessed else "APPEND"
+    print(
+        f"PASS action={action} entity={entity} "
+        f"partitions={result.partitions:,} files={result.files:,} "
+        f"rows={result.rows:,} seconds={result.elapsed_seconds:.2f} "
         f"content_checks={result.representative_checks}"
     )
     return result
@@ -666,13 +963,11 @@ def _required_environment(name: str) -> str:
 
 
 def create_s3_client() -> tuple[Any, str]:
-    """Create an S3 client from the project's existing environment settings."""
+    """Create an S3 client through the standard AWS credential provider chain."""
     bucket = _required_environment("S3_BUCKET")
     client = boto3.client(
         "s3",
         region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"),
-        aws_access_key_id=_required_environment("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=_required_environment("AWS_SECRET_ACCESS_KEY"),
         config=Config(
             connect_timeout=10,
             read_timeout=300,
@@ -699,23 +994,69 @@ def create_postgres_connection() -> Any:
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Full-refresh S3 Bronze data into PostgreSQL landing tables."
+        description="Load S3 Bronze data into PostgreSQL landing tables."
     )
-    selection = parser.add_mutually_exclusive_group(required=True)
-    selection.add_argument("--entity", choices=tuple(ENTITY_SPECS))
-    selection.add_argument("--all", action="store_true")
+    parser.add_argument("--entity", choices=tuple(ENTITY_SPECS))
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--incremental",
+        action="store_true",
+        help="Append only new partitions, or reprocess a bounded requested window.",
+    )
+    mode.add_argument(
+        "--all",
+        action="store_true",
+        help="Recovery mode: full-refresh all landing tables.",
+    )
+    mode.add_argument(
+        "--full-refresh",
+        action="store_true",
+        help="Recovery mode: full-refresh --entity or all entities.",
+    )
+    parser.add_argument("--partition-date", type=date.fromisoformat)
+    parser.add_argument("--start-date", type=date.fromisoformat)
+    parser.add_argument("--end-date", type=date.fromisoformat)
+    parser.add_argument("--lookback-days", type=int, default=0)
     parser.add_argument("--batch-size", type=int, default=COPY_BATCH_SIZE)
     args = parser.parse_args(argv)
     if args.batch_size < 1:
         parser.error("--batch-size must be positive")
+    if args.lookback_days < 0:
+        parser.error("--lookback-days cannot be negative")
+    if args.all and args.entity:
+        parser.error("--all cannot be combined with --entity")
+    if not (args.incremental or args.all or args.full_refresh or args.entity):
+        parser.error("choose --incremental, --all, --full-refresh, or --entity")
+    date_options = sum(
+        value is not None
+        for value in (args.partition_date, args.start_date, args.end_date)
+    )
+    if date_options and not args.incremental:
+        parser.error("partition/date filters require --incremental")
+    if args.lookback_days and not args.incremental:
+        parser.error("--lookback-days requires --incremental")
+    if args.partition_date and (args.start_date or args.end_date):
+        parser.error("--partition-date cannot be combined with a date range")
+    if args.lookback_days and date_options:
+        parser.error("--lookback-days cannot be combined with date filters")
+    if args.start_date and args.end_date and args.start_date > args.end_date:
+        parser.error("--start-date cannot be after --end-date")
+    if args.partition_date:
+        args.start_date = args.partition_date
+        args.end_date = args.partition_date
     return args
 
 
 def run(argv: Sequence[str] | None = None) -> list[LoadResult]:
-    """CLI entry point for one-entity or all-entity loading."""
+    """CLI entry point for incremental daily or recovery full-refresh loads."""
     load_dotenv()
     args = parse_args(argv)
-    entities: Iterable[str] = ENTITY_SPECS if args.all else (args.entity,)
+    entities: Iterable[str] = (
+        (args.entity,)
+        if args.entity
+        else ENTITY_SPECS
+    )
+    incremental = args.incremental
     s3_client, bucket = create_s3_client()
     connection = create_postgres_connection()
     total_started = time.monotonic()
@@ -723,26 +1064,35 @@ def run(argv: Sequence[str] | None = None) -> list[LoadResult]:
     try:
         for entity in entities:
             try:
-                results.append(
-                    load_entity(
-                        connection,
-                        s3_client,
-                        bucket,
-                        entity,
-                        batch_size=args.batch_size,
+                if incremental:
+                    results.append(
+                        load_entity_incremental(
+                            connection,
+                            s3_client,
+                            bucket,
+                            entity,
+                            batch_size=args.batch_size,
+                            lookback_days=args.lookback_days,
+                            start_date=args.start_date,
+                            end_date=args.end_date,
+                        )
                     )
-                )
+                else:
+                    results.append(
+                        load_entity(
+                            connection,
+                            s3_client,
+                            bucket,
+                            entity,
+                            batch_size=args.batch_size,
+                        )
+                    )
             except Exception:
                 print(f"FAIL entity={entity}")
                 raise
-        if args.all:
-            quality = validate_quality_preservation(connection)
+        if not incremental and not args.entity:
             schema = validate_landing_schema(connection)
             print("PASS landing_tables=" + str(len(schema["tables"])))
-            print("PASS missing_values=" + json.dumps(quality["missing"], sort_keys=True))
-            print("PASS duplicates=" + json.dumps(quality["duplicates"], sort_keys=True))
-            print("PASS temporal=" + json.dumps(quality["temporal"], sort_keys=True))
-            print(f"PASS temporal_total={quality['temporal_total']:,}")
     finally:
         connection.close()
     elapsed = time.monotonic() - total_started

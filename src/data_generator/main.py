@@ -143,6 +143,17 @@ def parse_args() -> argparse.Namespace:
         metavar="YYYY-MM-DD",
         help="Bronze partition date (default: today).",
     )
+    parser.add_argument(
+        "--daily-date",
+        type=date.fromisoformat,
+        metavar="YYYY-MM-DD",
+        help="Generate exactly one append-only day from existing S3 Raw state.",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Replace only an existing --daily-date partition after inventory checks.",
+    )
     return parser.parse_args()
 
 
@@ -319,15 +330,31 @@ def _load_partitioned_activity_datasets(partition_date: date) -> tuple:
 
 def main() -> None:
     args = parse_args()
-    config = load_config(require_s3=args.output == "s3")
+    config = load_config(require_s3=args.output == "s3" or args.daily_date is not None)
+    if args.daily_date is not None:
+        from .daily_generation import print_daily_report, run_daily_generation
+
+        client = boto3.client(
+            "s3",
+            region_name=config["aws_default_region"] or DEFAULT_AWS_REGION,
+        )
+        result = run_daily_generation(
+            client,
+            config["s3_bucket"],
+            args.daily_date,
+            args.seed,
+            DEFAULT_LOCAL_ROOT,
+            upload=args.output == "s3",
+            overwrite=args.overwrite,
+        )
+        print_daily_report(result)
+        return
     if args.dataset == "bronze":
         if args.output != "s3":
             raise ValueError("Complete Bronze materialization requires --output s3")
         client = boto3.client(
             "s3",
             region_name=config["aws_default_region"] or DEFAULT_AWS_REGION,
-            aws_access_key_id=config["aws_access_key_id"],
-            aws_secret_access_key=config["aws_secret_access_key"],
         )
         protected_before = capture_protected_s3_inventory(
             client,
@@ -378,8 +405,6 @@ def main() -> None:
             client = boto3.client(
                 "s3",
                 region_name=config["aws_default_region"] or DEFAULT_AWS_REGION,
-                aws_access_key_id=config["aws_access_key_id"],
-                aws_secret_access_key=config["aws_secret_access_key"],
             )
             raw_before = s3_raw_inventory(client, config["s3_bucket"])
             for entity_name in BRONZE_ENTITIES:
@@ -388,8 +413,6 @@ def main() -> None:
                     DEFAULT_LOCAL_ROOT,
                     bucket=config["s3_bucket"],
                     region=config["aws_default_region"] or DEFAULT_AWS_REGION,
-                    aws_access_key_id=config["aws_access_key_id"],
-                    aws_secret_access_key=config["aws_secret_access_key"],
                     prefix="bronze",
                 )
             upload_local_partitioned_files(
@@ -397,8 +420,6 @@ def main() -> None:
                 DEFAULT_LOCAL_ROOT,
                 bucket=config["s3_bucket"],
                 region=config["aws_default_region"] or DEFAULT_AWS_REGION,
-                aws_access_key_id=config["aws_access_key_id"],
-                aws_secret_access_key=config["aws_secret_access_key"],
                 prefix="quality",
             )
             raw_after = s3_raw_inventory(client, config["s3_bucket"])
@@ -452,14 +473,10 @@ def main() -> None:
                     DEFAULT_LOCAL_ROOT,
                     bucket=config["s3_bucket"],
                     region=config["aws_default_region"] or DEFAULT_AWS_REGION,
-                    aws_access_key_id=config["aws_access_key_id"],
-                    aws_secret_access_key=config["aws_secret_access_key"],
                 )
             client = boto3.client(
                 "s3",
                 region_name=config["aws_default_region"] or DEFAULT_AWS_REGION,
-                aws_access_key_id=config["aws_access_key_id"],
-                aws_secret_access_key=config["aws_secret_access_key"],
             )
             s3_summary = validate_s3_finance_data(
                 client,
@@ -500,14 +517,10 @@ def main() -> None:
                     DEFAULT_LOCAL_ROOT,
                     bucket=config["s3_bucket"],
                     region=config["aws_default_region"] or DEFAULT_AWS_REGION,
-                    aws_access_key_id=config["aws_access_key_id"],
-                    aws_secret_access_key=config["aws_secret_access_key"],
                 )
             client = boto3.client(
                 "s3",
                 region_name=config["aws_default_region"] or DEFAULT_AWS_REGION,
-                aws_access_key_id=config["aws_access_key_id"],
-                aws_secret_access_key=config["aws_secret_access_key"],
             )
             s3_summary = validate_s3_quality_events(
                 client,
@@ -548,14 +561,10 @@ def main() -> None:
                     DEFAULT_LOCAL_ROOT,
                     bucket=config["s3_bucket"],
                     region=config["aws_default_region"] or DEFAULT_AWS_REGION,
-                    aws_access_key_id=config["aws_access_key_id"],
-                    aws_secret_access_key=config["aws_secret_access_key"],
                 )
             client = boto3.client(
                 "s3",
                 region_name=config["aws_default_region"] or DEFAULT_AWS_REGION,
-                aws_access_key_id=config["aws_access_key_id"],
-                aws_secret_access_key=config["aws_secret_access_key"],
             )
             s3_summary = validate_s3_inference_data(
                 client,
@@ -613,8 +622,6 @@ def main() -> None:
                     entity_name,
                     bucket=config["s3_bucket"],
                     region=config["aws_default_region"] or DEFAULT_AWS_REGION,
-                    aws_access_key_id=config["aws_access_key_id"],
-                    aws_secret_access_key=config["aws_secret_access_key"],
                     replacement_key=S3_REPLACEMENT_KEYS[entity_name],
                 )
         return
@@ -635,8 +642,6 @@ def main() -> None:
                 args.partition_date,
                 bucket=config["s3_bucket"],
                 region=config["aws_default_region"] or DEFAULT_AWS_REGION,
-                aws_access_key_id=config["aws_access_key_id"],
-                aws_secret_access_key=config["aws_secret_access_key"],
             )
 
 

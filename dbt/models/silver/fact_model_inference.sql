@@ -1,3 +1,35 @@
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key='inference_id',
+    on_schema_change='sync_all_columns',
+    indexes=[
+        {'columns': ['inference_id'], 'unique': true, 'type': 'btree'},
+        {'columns': ['model_id', 'date_key'], 'type': 'btree'}
+    ]
+) }}
+
+with inferences as (
+    select *
+    from {{ ref('stg_model_inferences') }}
+    {% if is_incremental() %}
+    where request_at >= (
+        select coalesce(
+            max(request_at) - interval '2 days',
+            timestamp '1900-01-01'
+        )
+        from {{ this }}
+    )
+       or physical_partition_date >= (
+           select coalesce(
+               max(source_partition_date) - 2,
+               date '1900-01-01'
+           )
+           from {{ this }}
+       )
+    {% endif %}
+)
+
 select
     inferences.inference_id,
     inferences.completion_id,
@@ -24,7 +56,7 @@ select
     inferences.physical_partition_date as source_partition_date,
     inferences.is_model_id_missing,
     inferences.is_timestamp_order_valid
-from {{ ref('stg_model_inferences') }} as inferences
+from inferences
 left join {{ ref('dim_user') }} as users
     on inferences.user_id = users.user_id
    and inferences.request_at >= users.effective_start_at

@@ -94,7 +94,8 @@ with DAG(
         task_id="extract_load",
         bash_command=(
             "cd /opt/airflow && "
-            "python -m src.data_generator.postgres_landing --all"
+            "python -m src.data_generator.postgres_landing "
+            "--incremental --lookback-days 2"
         ),
     )
 

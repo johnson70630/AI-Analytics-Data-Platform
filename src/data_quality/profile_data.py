@@ -1169,13 +1169,6 @@ def main() -> None:
     client_kwargs = {
         "region_name": config["aws_default_region"] or DEFAULT_AWS_REGION,
     }
-    if config["aws_access_key_id"] and config["aws_secret_access_key"]:
-        client_kwargs.update(
-            {
-                "aws_access_key_id": config["aws_access_key_id"],
-                "aws_secret_access_key": config["aws_secret_access_key"],
-            }
-        )
     client = boto3.client("s3", **client_kwargs)
     profile = build_profile(
         client,
