@@ -84,6 +84,28 @@ models:
         data_tests:
           - unique
           - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_user_sensitive')
+                field: user_key
+      - name: user_id
+        data_tests:
+          - not_null
+
+  - name: dim_user_sensitive
+    description: >
+      Restricted direct user identifiers aligned one-to-one with every hybrid
+      SCD user version. Type 1 email and name values are overlaid from the
+      current user state without creating additional historical versions.
+    columns:
+      - name: user_key
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_user')
+                field: user_key
       - name: user_id
         data_tests:
           - not_null

@@ -194,16 +194,12 @@ def write_partitioned_records_to_s3(
     *,
     bucket: str,
     region: str,
-    aws_access_key_id: str,
-    aws_secret_access_key: str,
     replacement_key: str | None = None,
 ) -> list[str]:
     partitions = partition_by_ingestion_date(records)
     client = boto3.client(
         "s3",
         region_name=region,
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key,
     )
     keys = [
         write_records_to_s3(
@@ -212,8 +208,6 @@ def write_partitioned_records_to_s3(
             partition_date,
             bucket=bucket,
             region=region,
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
             client=client,
             verbose=False,
             object_key=(
@@ -402,8 +396,6 @@ def upload_local_partitioned_files(
     *,
     bucket: str,
     region: str,
-    aws_access_key_id: str,
-    aws_secret_access_key: str,
     prefix: str = "raw",
 ) -> list[str]:
     """Upload validated local daily files to identical, idempotent S3 keys."""
@@ -414,8 +406,6 @@ def upload_local_partitioned_files(
     client = boto3.client(
         "s3",
         region_name=region,
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key,
     )
     keys = [path.relative_to(root).as_posix() for path in paths]
     existing = {

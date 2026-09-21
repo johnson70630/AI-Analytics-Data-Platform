@@ -10,5 +10,4 @@ RUN apt-get update \
 USER airflow
 RUN pip install --no-cache-dir \
     "dbt-core==1.12.3" \
-    "dbt-duckdb==1.11.0" \
     "dbt-postgres==1.11.0"

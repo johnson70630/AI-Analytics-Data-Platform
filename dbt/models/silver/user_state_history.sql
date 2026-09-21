@@ -110,7 +110,6 @@ state_events as (
 ),
 
 reconstructed_states as (
-    {% if target.type == 'postgres' %}
     select
         events.user_id,
         events.effective_start_at,
@@ -153,24 +152,6 @@ reconstructed_states as (
             limit 1
         ) as account_status
     from state_events as events
-    {% else %}
-    select
-        user_id,
-        effective_start_at,
-        version_update_id,
-        type2_change_field,
-        last_value(country_code_value ignore nulls) over (
-            partition by user_id
-            order by effective_start_at, coalesce(version_update_id, '')
-            rows between unbounded preceding and current row
-        ) as country_code,
-        last_value(account_status_value ignore nulls) over (
-            partition by user_id
-            order by effective_start_at, coalesce(version_update_id, '')
-            rows between unbounded preceding and current row
-        ) as account_status
-    from state_events
-    {% endif %}
 ),
 
 versioned_states as (

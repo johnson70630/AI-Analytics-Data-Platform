@@ -1,3 +1,10 @@
+{{ config(
+    materialized='table',
+    grants={
+        'select': ['analytics_reader', 'pii_approved']
+    }
+) }}
+
 with snapshot_boundaries as (
     select
         user_id,
@@ -9,8 +16,6 @@ with snapshot_boundaries as (
 bootstrap_versions as (
     select
         history.user_id,
-        current_state.email,
-        current_state.name,
         history.country_code,
         history.account_status,
         current_state.signup_at,
@@ -34,8 +39,6 @@ bootstrap_versions as (
 snapshot_versions as (
     select
         snapshot.user_id,
-        current_state.email,
-        current_state.name,
         snapshot.country_code,
         snapshot.account_status,
         current_state.signup_at,
@@ -61,8 +64,6 @@ select
         user_id || '|' || cast(effective_start_at as varchar)
     ) as user_key,
     user_id,
-    email,
-    name,
     country_code,
     account_status,
     signup_at,

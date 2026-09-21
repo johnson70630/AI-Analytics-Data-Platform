@@ -74,9 +74,17 @@ class DataGeneratorFoundationTests(unittest.TestCase):
     def test_s3_config_lists_every_missing_value(self, _load_dotenv):
         with self.assertRaisesRegex(
             RuntimeError,
-            "AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET",
+            "S3_BUCKET",
         ):
             load_config(require_s3=True)
+
+    @patch("src.data_generator.config.load_dotenv")
+    @patch.dict("os.environ", {"S3_BUCKET": "example-bucket"}, clear=True)
+    def test_s3_config_uses_aws_provider_chain(self, _load_dotenv):
+        config = load_config(require_s3=True)
+        self.assertEqual(config["s3_bucket"], "example-bucket")
+        self.assertNotIn("aws_access_key_id", config)
+        self.assertNotIn("aws_secret_access_key", config)
 
     @patch("src.data_generator.writers.boto3.client")
     def test_s3_writer_uploads_ndjson(self, boto3_client):
@@ -87,14 +95,13 @@ class DataGeneratorFoundationTests(unittest.TestCase):
             date(2026, 8, 20),
             bucket="example-bucket",
             region="us-east-1",
-            aws_access_key_id="test-key",
-            aws_secret_access_key="test-secret",
         )
         self.assertTrue(key.startswith("raw/generator_test/dt=2026-08-20/"))
         boto3_client.return_value.put_object.assert_called_once()
         request = boto3_client.return_value.put_object.call_args.kwargs
         self.assertEqual(request["Bucket"], "example-bucket")
         self.assertEqual(request["Body"], b'{"id":"1"}\n')
+        boto3_client.assert_called_once_with("s3", region_name="us-east-1")
 
 
 if __name__ == "__main__":

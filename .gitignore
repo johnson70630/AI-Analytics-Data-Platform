@@ -1,5 +1,8 @@
 venv/
 .env
+.aws/
+aws_credentials
+aws-credentials
 __pycache__/
 *.pyc
 data/

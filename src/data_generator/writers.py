@@ -110,8 +110,6 @@ def write_records_to_s3(
     *,
     bucket: str,
     region: str,
-    aws_access_key_id: str,
-    aws_secret_access_key: str,
     client: Any = None,
     verbose: bool = True,
     object_key: str | None = None,
@@ -128,8 +126,6 @@ def write_records_to_s3(
             client = boto3.client(
                 "s3",
                 region_name=region,
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
             )
         client.put_object(
             Bucket=bucket,

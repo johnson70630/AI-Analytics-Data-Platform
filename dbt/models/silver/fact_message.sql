@@ -1,3 +1,34 @@
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key='message_id',
+    on_schema_change='sync_all_columns',
+    indexes=[
+        {'columns': ['message_id'], 'unique': true, 'type': 'btree'}
+    ]
+) }}
+
+with messages as (
+    select *
+    from {{ ref('stg_messages') }}
+    {% if is_incremental() %}
+    where created_at >= (
+        select coalesce(
+            max(created_at) - interval '2 days',
+            timestamp '1900-01-01'
+        )
+        from {{ this }}
+    )
+       or physical_partition_date >= (
+           select coalesce(
+               max(source_partition_date) - 2,
+               date '1900-01-01'
+           )
+           from {{ this }}
+       )
+    {% endif %}
+)
+
 select
     messages.message_id,
     messages.conversation_id,
@@ -19,7 +50,7 @@ select
     messages.physical_partition_date as source_partition_date,
     messages.is_message_text_missing,
     messages.is_timestamp_order_valid
-from {{ ref('stg_messages') }} as messages
+from messages
 left join {{ ref('dim_user') }} as users
     on messages.user_id = users.user_id
    and messages.created_at >= users.effective_start_at

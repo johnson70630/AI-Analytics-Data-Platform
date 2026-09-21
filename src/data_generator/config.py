@@ -11,8 +11,6 @@ DEFAULT_OUTPUT_MODE = "local"
 DEFAULT_RANDOM_SEED = 42
 DEFAULT_LOCAL_ROOT = Path("data")
 REQUIRED_S3_SETTINGS = (
-    "AWS_ACCESS_KEY_ID",
-    "AWS_SECRET_ACCESS_KEY",
     "S3_BUCKET",
 )
 
@@ -22,8 +20,6 @@ def load_config(require_s3: bool = False) -> dict[str, str | None]:
     load_dotenv()
 
     config = {
-        "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
-        "aws_secret_access_key": os.getenv("AWS_SECRET_ACCESS_KEY"),
         "aws_default_region": os.getenv(
             "AWS_DEFAULT_REGION", DEFAULT_AWS_REGION
         ),

@@ -1,17 +1,38 @@
 import unittest
 from datetime import date, datetime, timezone
+from unittest.mock import MagicMock, patch
 
 from src.data_generator.postgres_landing import (
     ENTITY_SPECS,
     LINEAGE_COLUMNS,
+    create_s3_client,
     create_table_sql,
+    list_bronze_partition_dates,
+    load_entity_incremental,
     parse_args,
     partition_date_from_key,
     record_to_postgres_row,
+    select_incremental_dates,
 )
 
 
 class PostgresLandingTests(unittest.TestCase):
+    @patch("src.data_generator.postgres_landing.boto3.client")
+    @patch.dict(
+        "os.environ",
+        {"S3_BUCKET": "example-bucket", "AWS_DEFAULT_REGION": "us-west-2"},
+        clear=True,
+    )
+    def test_s3_client_uses_standard_credential_chain(self, boto3_client):
+        client, bucket = create_s3_client()
+        self.assertIs(client, boto3_client.return_value)
+        self.assertEqual(bucket, "example-bucket")
+        kwargs = boto3_client.call_args.kwargs
+        self.assertEqual(kwargs["region_name"], "us-west-2")
+        self.assertNotIn("aws_access_key_id", kwargs)
+        self.assertNotIn("aws_secret_access_key", kwargs)
+        self.assertNotIn("aws_session_token", kwargs)
+
     def test_partition_date_is_parsed_from_matching_bronze_key(self):
         key = "bronze/messages/dt=2026-08-20/records.json"
         self.assertEqual(
@@ -144,6 +165,172 @@ class PostgresLandingTests(unittest.TestCase):
             parse_args([])
         with self.assertRaises(SystemExit):
             parse_args(["--all", "--batch-size", "0"])
+
+    def test_cli_incremental_modes_are_unambiguous(self):
+        args = parse_args(["--incremental", "--lookback-days", "2"])
+        self.assertTrue(args.incremental)
+        self.assertEqual(args.lookback_days, 2)
+        args = parse_args(
+            ["--incremental", "--entity", "messages", "--partition-date", "2026-08-21"]
+        )
+        self.assertEqual(args.start_date, date(2026, 8, 21))
+        self.assertEqual(args.end_date, date(2026, 8, 21))
+        self.assertTrue(parse_args(["--full-refresh"]).full_refresh)
+        with self.assertRaises(SystemExit):
+            parse_args(["--incremental", "--partition-date", "2026-08-21", "--lookback-days", "1"])
+
+    def test_partition_discovery_uses_common_prefixes(self):
+        paginator = MagicMock()
+        paginator.paginate.return_value = [
+            {
+                "CommonPrefixes": [
+                    {"Prefix": "bronze/messages/dt=2026-08-20/"},
+                    {"Prefix": "bronze/messages/dt=2026-08-21/"},
+                ]
+            }
+        ]
+        client = MagicMock()
+        client.get_paginator.return_value = paginator
+        self.assertEqual(
+            list_bronze_partition_dates(client, "bucket", "messages"),
+            [date(2026, 8, 20), date(2026, 8, 21)],
+        )
+        paginator.paginate.assert_called_once_with(
+            Bucket="bucket", Prefix="bronze/messages/", Delimiter="/"
+        )
+
+    def test_per_entity_watermark_selects_new_dates_and_allows_noop(self):
+        available = [date(2026, 8, 20), date(2026, 8, 21)]
+        selected, reprocess = select_incremental_dates(
+            available, date(2026, 8, 20)
+        )
+        self.assertEqual(selected, [date(2026, 8, 21)])
+        self.assertFalse(reprocess)
+        selected, reprocess = select_incremental_dates(
+            available, date(2026, 8, 21)
+        )
+        self.assertEqual(selected, [])
+        self.assertFalse(reprocess)
+
+    def test_empty_entity_and_lookback_date_selection(self):
+        available = [date(2026, 8, 19), date(2026, 8, 20), date(2026, 8, 21)]
+        self.assertEqual(select_incremental_dates([], date(2026, 8, 20))[0], [])
+        selected, reprocess = select_incremental_dates(
+            available, date(2026, 8, 21), lookback_days=1
+        )
+        self.assertEqual(selected, [date(2026, 8, 20), date(2026, 8, 21)])
+        self.assertTrue(reprocess)
+        selected, _ = select_incremental_dates(
+            [*available, date(2026, 8, 22)],
+            date(2026, 8, 21),
+            lookback_days=1,
+        )
+        self.assertEqual(selected, [date(2026, 8, 21), date(2026, 8, 22)])
+        selected, reprocess = select_incremental_dates(
+            available,
+            date(2026, 8, 21),
+            start_date=date(2026, 8, 21),
+            end_date=date(2026, 8, 21),
+        )
+        self.assertEqual(selected, [date(2026, 8, 21)])
+        self.assertTrue(reprocess)
+
+    def _connection(self, *fetchone_values):
+        cursor = MagicMock()
+        cursor.__enter__.return_value = cursor
+        cursor.fetchone.side_effect = fetchone_values
+        connection = MagicMock()
+        connection.cursor.return_value = cursor
+        return connection, cursor
+
+    @patch("src.data_generator.postgres_landing._validate_representatives", return_value=1)
+    @patch("src.data_generator.postgres_landing._validate_partition_physical_shape")
+    @patch("src.data_generator.postgres_landing._flush_copy_batch")
+    @patch("src.data_generator.postgres_landing._read_s3_object_rows")
+    @patch("src.data_generator.postgres_landing.list_bronze_partition_keys")
+    @patch("src.data_generator.postgres_landing.list_bronze_partition_dates")
+    def test_new_partition_append_preserves_physical_rows(
+        self, list_dates, list_keys, read_rows, flush, validate_shape, validate
+    ):
+        target = date(2026, 8, 21)
+        list_dates.return_value = [date(2026, 8, 20), target]
+        list_keys.return_value = ["bronze/messages/dt=2026-08-21/a.json"]
+        duplicate = tuple(["same-id"] + [None] * 10)
+        read_rows.return_value = [duplicate, duplicate]
+        connection, cursor = self._connection((date(2026, 8, 20),), (2,))
+        result = load_entity_incremental(
+            connection, MagicMock(), "bucket", "messages"
+        )
+        self.assertEqual(result.rows, 2)
+        self.assertEqual(result.partition_dates, (target,))
+        self.assertFalse(result.reprocessed)
+        self.assertEqual(read_rows.return_value[0], read_rows.return_value[1])
+        statements = [call.args[0] for call in cursor.execute.call_args_list]
+        self.assertFalse(any("TRUNCATE" in sql or "DELETE" in sql for sql in statements))
+        connection.commit.assert_called_once()
+        connection.rollback.assert_not_called()
+
+    @patch("src.data_generator.postgres_landing.list_bronze_partition_dates")
+    def test_second_incremental_run_is_noop(self, list_dates):
+        target = date(2026, 8, 21)
+        list_dates.return_value = [target]
+        connection, _ = self._connection((target,))
+        result = load_entity_incremental(
+            connection, MagicMock(), "bucket", "subscriptions"
+        )
+        self.assertEqual(result.rows, 0)
+        self.assertEqual(result.partitions, 0)
+        connection.commit.assert_called_once()
+
+    @patch("src.data_generator.postgres_landing._validate_representatives", return_value=1)
+    @patch("src.data_generator.postgres_landing._validate_partition_physical_shape")
+    @patch("src.data_generator.postgres_landing._flush_copy_batch")
+    @patch("src.data_generator.postgres_landing._read_s3_object_rows")
+    @patch("src.data_generator.postgres_landing.list_bronze_partition_keys")
+    @patch("src.data_generator.postgres_landing.list_bronze_partition_dates")
+    def test_explicit_partition_reprocess_deletes_only_affected_date(
+        self, list_dates, list_keys, read_rows, flush, validate_shape, validate
+    ):
+        target = date(2026, 8, 21)
+        list_dates.return_value = [date(2026, 8, 20), target]
+        list_keys.return_value = ["bronze/feedback/dt=2026-08-21/a.json"]
+        read_rows.return_value = [tuple(["feedback-1"] + [None] * 9)]
+        connection, cursor = self._connection((target,), (1,))
+        result = load_entity_incremental(
+            connection,
+            MagicMock(),
+            "bucket",
+            "feedback",
+            start_date=target,
+            end_date=target,
+        )
+        self.assertTrue(result.reprocessed)
+        delete_calls = [
+            call
+            for call in cursor.execute.call_args_list
+            if "DELETE FROM" in call.args[0]
+        ]
+        self.assertEqual(len(delete_calls), 1)
+        self.assertEqual(delete_calls[0].args[1], ([target],))
+        self.assertNotIn("TRUNCATE", delete_calls[0].args[0])
+
+    @patch("src.data_generator.postgres_landing._read_s3_object_rows")
+    @patch("src.data_generator.postgres_landing.list_bronze_partition_keys")
+    @patch("src.data_generator.postgres_landing.list_bronze_partition_dates")
+    def test_incremental_failure_rolls_back_transaction(
+        self, list_dates, list_keys, read_rows
+    ):
+        target = date(2026, 8, 21)
+        list_dates.return_value = [target]
+        list_keys.return_value = ["bronze/errors/dt=2026-08-21/a.json"]
+        read_rows.side_effect = RuntimeError("read failure")
+        connection, _ = self._connection((date(2026, 8, 20),))
+        with self.assertRaisesRegex(RuntimeError, "read failure"):
+            load_entity_incremental(
+                connection, MagicMock(), "bucket", "errors"
+            )
+        connection.rollback.assert_called_once()
+        connection.commit.assert_not_called()
 
 
 if __name__ == "__main__":

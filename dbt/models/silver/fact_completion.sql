@@ -1,3 +1,34 @@
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key='completion_id',
+    on_schema_change='sync_all_columns',
+    indexes=[
+        {'columns': ['completion_id'], 'unique': true, 'type': 'btree'}
+    ]
+) }}
+
+with completions as (
+    select *
+    from {{ ref('stg_completions') }}
+    {% if is_incremental() %}
+    where requested_at >= (
+        select coalesce(
+            max(requested_at) - interval '2 days',
+            timestamp '1900-01-01'
+        )
+        from {{ this }}
+    )
+       or physical_partition_date >= (
+           select coalesce(
+               max(source_partition_date) - 2,
+               date '1900-01-01'
+           )
+           from {{ this }}
+       )
+    {% endif %}
+)
+
 select
     completions.completion_id,
     completions.message_id,
@@ -23,7 +54,7 @@ select
     completions.is_user_id_recovered,
     completions.is_user_id_missing,
     completions.is_timestamp_order_valid
-from {{ ref('stg_completions') }} as completions
+from completions
 left join {{ ref('dim_user') }} as users
     on completions.user_id = users.user_id
    and completions.requested_at >= users.effective_start_at

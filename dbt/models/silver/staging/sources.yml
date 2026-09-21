@@ -2,22 +2,11 @@ version: 2
 
 sources:
   - name: bronze
-    schema: "{{ 'landing' if target.type == 'postgres' else target.schema }}"
+    schema: landing
     description: >
-      Bronze-layer JSON Lines datasets stored in S3. Bronze contains all
-      14 source entities and is partitioned by ingestion date where applicable.
+      PostgreSQL landing tables loaded from the 14 S3 Bronze source entities.
       Selected entities contain controlled data-quality issues used by the
       Silver cleaning pipeline.
-
-    config:
-      external_location: >
-        {%- if target.type == 'duckdb' -%}
-        read_json_auto(
-          's3://{{ env_var("S3_BUCKET") }}/bronze/{name}/dt=*/*.json',
-          format='newline_delimited',
-          union_by_name=true
-        )
-        {%- endif -%}
 
     tables:
       - name: models
