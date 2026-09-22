@@ -4,6 +4,8 @@ A production-oriented batch analytics platform for an AI chatbot product. It gen
 
 The project is designed as a portfolio-scale system: its purpose is not only to produce dashboards, but to make ingestion boundaries, data-quality behavior, historical modeling, performance trade-offs, and access controls explicit and testable.
 
+![AI Analytics Data Platform Architecture](images/architecture.png)
+
 ## Final Architecture
 
 ```text
