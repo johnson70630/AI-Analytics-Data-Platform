@@ -1,7 +1,6 @@
 """Conversation and user-message source generation for persistent chat threads."""
 
 import json
-import random
 import statistics
 from collections import Counter
 from datetime import date, datetime, time, timedelta, timezone
@@ -10,7 +9,7 @@ from typing import Any
 
 from .reference_data import generate_devices
 from .user_data import validate_user_updates, validate_users
-from .utils import generate_uuid
+from .utils import generate_uuid, rng
 
 
 CONVERSATION_MIN_COUNT = 100_000
@@ -169,7 +168,7 @@ def _terminal_closed_times(
 
 
 def _conversation_count() -> int:
-    segment = random.choices(
+    segment = rng.choices(
         ACTIVITY_SEGMENTS,
         weights=ACTIVITY_SEGMENT_WEIGHTS,
         k=1,
@@ -177,12 +176,12 @@ def _conversation_count() -> int:
     if segment == "INACTIVE":
         return 0
     if segment == "LOW":
-        return random.choices((1, 2, 3), weights=(50, 35, 15), k=1)[0]
+        return rng.choices((1, 2, 3), weights=(50, 35, 15), k=1)[0]
     if segment == "NORMAL":
-        return random.randint(4, 14)
+        return rng.randint(4, 14)
     if segment == "ACTIVE":
-        return random.randint(19, 45)
-    return random.randint(61, 140)
+        return rng.randint(19, 45)
+    return rng.randint(61, 140)
 
 
 def _activity_timestamp(start_at: datetime, end_at: datetime) -> datetime:
@@ -190,17 +189,17 @@ def _activity_timestamp(start_at: datetime, end_at: datetime) -> datetime:
         return start_at
     total_days = (end_at.date() - start_at.date()).days
     for _ in range(30):
-        day_offset = int(total_days * (random.random() ** 0.85))
-        hour = random.choices(range(24), weights=HOUR_WEIGHTS, k=1)[0]
+        day_offset = int(total_days * (rng.random() ** 0.85))
+        hour = rng.choices(range(24), weights=HOUR_WEIGHTS, k=1)[0]
         candidate = datetime.combine(
             start_at.date() + timedelta(days=day_offset),
-            time(hour, random.randrange(60), random.randrange(60)),
+            time(hour, rng.randrange(60), rng.randrange(60)),
             timezone.utc,
         )
         if start_at <= candidate <= end_at:
             return candidate
     available_seconds = int((end_at - start_at).total_seconds())
-    return start_at + timedelta(seconds=random.randint(0, available_seconds))
+    return start_at + timedelta(seconds=rng.randint(0, available_seconds))
 
 
 def generate_conversations(
@@ -242,39 +241,39 @@ def generate_conversations(
 
 
 def _message_count() -> int:
-    length_group = random.choices(
+    length_group = rng.choices(
         ("SHORT", "TYPICAL", "ENGAGED", "LONG", "VERY_LONG"),
         weights=(35, 45, 17, 2.5, 0.5),
         k=1,
     )[0]
     if length_group == "SHORT":
-        return random.randint(1, 4)
+        return rng.randint(1, 4)
     if length_group == "TYPICAL":
-        return random.choices(
+        return rng.choices(
             tuple(range(5, 13)),
             weights=(10, 14, 17, 18, 16, 12, 8, 5),
             k=1,
         )[0]
     if length_group == "ENGAGED":
-        return random.randint(13, 30)
+        return rng.randint(13, 30)
     if length_group == "LONG":
-        return random.randint(31, 60)
-    return random.randint(61, 90)
+        return rng.randint(31, 60)
+    return rng.randint(61, 90)
 
 
 def _message_gap_seconds() -> int:
-    gap_group = random.choices(
+    gap_group = rng.choices(
         ("SHORT", "SAME_DAY", "MULTI_DAY", "LONG_RETURN"),
         weights=(88, 8, 3.5, 0.5),
         k=1,
     )[0]
     if gap_group == "SHORT":
-        return random.randint(30, 1_800)
+        return rng.randint(30, 1_800)
     if gap_group == "SAME_DAY":
-        return random.randint(1_801, 21_600)
+        return rng.randint(1_801, 21_600)
     if gap_group == "MULTI_DAY":
-        return random.randint(86_400, 7 * 86_400)
-    return random.randint(8 * 86_400, 30 * 86_400)
+        return rng.randint(86_400, 7 * 86_400)
+    return rng.randint(8 * 86_400, 30 * 86_400)
 
 
 def _message_timestamps(
@@ -294,7 +293,7 @@ def _message_timestamps(
         latest_timestamp = activity_end - timedelta(seconds=remaining_messages)
         max_delay = max(0, int((latest_timestamp - current).total_seconds()))
         if sequence_index == 0:
-            delay = min(random.randint(0, 300), max_delay)
+            delay = min(rng.randint(0, 300), max_delay)
         else:
             delay = min(_message_gap_seconds(), max_delay)
             delay = max(1, delay)
@@ -306,9 +305,9 @@ def _message_timestamps(
 def _choose_device(
     devices_by_platform: dict[str, list[dict[str, Any]]],
 ) -> str:
-    platform = random.choices(PLATFORMS, weights=PLATFORM_WEIGHTS, k=1)[0]
+    platform = rng.choices(PLATFORMS, weights=PLATFORM_WEIGHTS, k=1)[0]
     candidates = devices_by_platform[platform]
-    return random.choices(
+    return rng.choices(
         [device["device_id"] for device in candidates],
         weights=[DEVICE_WEIGHTS[device["device_id"]] for device in candidates],
         k=1,
@@ -316,15 +315,15 @@ def _choose_device(
 
 
 def _prompt_text() -> str:
-    topic = random.choice(PROMPT_TOPICS)
-    second_topic = random.choice(PROMPT_TOPICS)
-    prompt_group = random.choices(
+    topic = rng.choice(PROMPT_TOPICS)
+    second_topic = rng.choice(PROMPT_TOPICS)
+    prompt_group = rng.choices(
         ("SHORT", "MEDIUM", "LONG"),
         weights=(30, 60, 10),
         k=1,
     )[0]
     if prompt_group == "SHORT":
-        template = random.choice(
+        template = rng.choice(
             (
                 "Explain {topic}.",
                 "Give me an example of {topic}.",
@@ -334,7 +333,7 @@ def _prompt_text() -> str:
         )
         return template.format(topic=topic)
     if prompt_group == "MEDIUM":
-        template = random.choice(
+        template = rng.choice(
             (
                 "Can you explain {topic} and show a practical example?",
                 "Help me compare {topic} with {second_topic} for a production project.",
@@ -380,10 +379,10 @@ def generate_messages(
         )
         previous_device_id = _choose_device(devices_by_platform)
         for sequence_number, created_at in enumerate(timestamps, start=1):
-            if sequence_number > 1 and random.random() < 0.12:
+            if sequence_number > 1 and rng.random() < 0.12:
                 previous_device_id = _choose_device(devices_by_platform)
             device_id = (
-                None if random.random() < 0.0075 else previous_device_id
+                None if rng.random() < 0.0075 else previous_device_id
             )
             messages.append(
                 {

@@ -2,7 +2,6 @@
 
 import json
 import math
-import random
 import sqlite3
 import tempfile
 from collections import Counter
@@ -19,7 +18,7 @@ from .ingestion import (
     remove_local_event_outputs,
 )
 from .reference_data import validate_models
-from .utils import generate_uuid
+from .utils import generate_uuid, rng
 from .writers import PartitionedNDJSONWriter
 
 
@@ -165,23 +164,23 @@ def choose_model(
     weights = [_model_weight(model, request_at) for model in models]
     if not any(weights):
         raise ValueError(f"No model released by {request_at.isoformat()}")
-    return random.choices(models, weights=weights, k=1)[0]
+    return rng.choices(models, weights=weights, k=1)[0]
 
 
 def _sample_latency_ms(model_id: str) -> int:
     median_ms, sigma = MODEL_LATENCY_PROFILES[model_id]
-    latency = random.lognormvariate(math.log(median_ms), sigma)
-    if random.random() < 0.005:
-        latency *= random.uniform(2.0, 4.5)
+    latency = rng.lognormvariate(math.log(median_ms), sigma)
+    if rng.random() < 0.005:
+        latency *= rng.uniform(2.0, 4.5)
     return max(50, min(20_000, round(latency)))
 
 
 def _input_tokens(message_text: str) -> int:
-    return max(1, round(len(message_text) / 4 * random.uniform(0.88, 1.12)))
+    return max(1, round(len(message_text) / 4 * rng.uniform(0.88, 1.12)))
 
 
 def _response_text(message_text: str) -> str:
-    category = random.choices(
+    category = rng.choices(
         ("SHORT", "MEDIUM", "LONG", "VERY_LONG"),
         weights=(20, 55, 23, 2),
         k=1,
@@ -192,17 +191,17 @@ def _response_text(message_text: str) -> str:
         "LONG": (420, 820),
         "VERY_LONG": (900, 1_600),
     }[category]
-    target = random.randint(*bounds)
-    if random.random() < 0.78:
-        target = max(target, len(message_text) + random.randint(20, 120))
+    target = rng.randint(*bounds)
+    if rng.random() < 0.78:
+        target = max(target, len(message_text) + rng.randint(20, 120))
     sentences = []
     while sum(len(sentence) + 1 for sentence in sentences) < target:
-        sentences.append(random.choice(RESPONSE_SENTENCES))
+        sentences.append(rng.choice(RESPONSE_SENTENCES))
     return " ".join(sentences)
 
 
 def _output_tokens(response_text: str) -> int:
-    return max(1, round(len(response_text) / 4 * random.uniform(0.90, 1.10)))
+    return max(1, round(len(response_text) / 4 * rng.uniform(0.90, 1.10)))
 
 
 def generate_completion_and_inference(
@@ -212,26 +211,26 @@ def generate_completion_and_inference(
 ) -> tuple[dict[str, Any], dict[str, Any]] | None:
     """Generate a causal zero/one completion and its single inference."""
     message_at = message["created_at"]
-    if message_at >= generation_end or random.random() >= COMPLETION_COVERAGE:
+    if message_at >= generation_end or rng.random() >= COMPLETION_COVERAGE:
         return None
 
     available_ms = int((generation_end - message_at).total_seconds() * 1_000)
-    request_delay_ms = min(random.randint(15, 350), available_ms)
+    request_delay_ms = min(rng.randint(15, 350), available_ms)
     requested_at = message_at + timedelta(milliseconds=request_delay_ms)
     model = choose_model(models, requested_at)
-    completion_status = random.choices(
+    completion_status = rng.choices(
         COMPLETION_STATUSES,
         weights=COMPLETION_STATUS_WEIGHTS,
         k=1,
     )[0]
     input_tokens = _input_tokens(message["message_text"])
-    pre_inference_ms = random.randint(5, 120)
-    post_inference_ms = random.randint(8, 220)
+    pre_inference_ms = rng.randint(5, 120)
+    post_inference_ms = rng.randint(8, 220)
     latency_ms = _sample_latency_ms(model["model_id"])
     required_ms = pre_inference_ms + latency_ms + post_inference_ms
     remaining_ms = int((generation_end - requested_at).total_seconds() * 1_000)
     if completion_status == "SUCCESS" and remaining_ms < required_ms:
-        completion_status = random.choice(("FAILED", "CANCELLED"))
+        completion_status = rng.choice(("FAILED", "CANCELLED"))
 
     completion_id = generate_uuid()
     inference_id = generate_uuid()
@@ -250,7 +249,7 @@ def generate_completion_and_inference(
         inference_status = "SUCCESS"
     else:
         detection_ms = min(
-            max(pre_inference_ms, random.randint(25, 2_000)),
+            max(pre_inference_ms, rng.randint(25, 2_000)),
             max(0, remaining_ms),
         )
         inference_request_at = requested_at + timedelta(

@@ -17,6 +17,12 @@ from src.data_generator.writers import (
 
 
 class DataGeneratorFoundationTests(unittest.TestCase):
+    def test_initialize_randomness_does_not_change_global_random_state(self):
+        random.seed(8675309)
+        state_before = random.getstate()
+        initialize_randomness(42)
+        self.assertEqual(random.getstate(), state_before)
+
     def test_seed_reproduces_test_records(self):
         first = generate_test_records(
             initialize_randomness(42), date(2026, 8, 20)

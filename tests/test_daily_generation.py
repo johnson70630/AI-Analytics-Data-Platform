@@ -1,3 +1,4 @@
+import random as stdlib_random
 import tempfile
 import unittest
 import uuid
@@ -133,6 +134,9 @@ class DailyGenerationTests(unittest.TestCase):
             )},
         }
         first = generate_daily_records(state, day, 42)
+        stdlib_random.seed(999)
+        for _ in range(100):
+            stdlib_random.random()
         second = generate_daily_records(state, day, 42)
         self.assertEqual(first, second)
         self.assertEqual(

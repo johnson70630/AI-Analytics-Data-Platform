@@ -1,3 +1,4 @@
+import random
 import tempfile
 import unittest
 from datetime import date, datetime, timedelta, timezone
@@ -68,6 +69,24 @@ class InferenceDataTests(unittest.TestCase):
         }
         self.assertGreater(status_counts["SUCCESS"], status_counts["FAILED"])
         self.assertGreater(status_counts["FAILED"], status_counts["CANCELLED"])
+
+    def test_large_sample_is_exactly_deterministic(self):
+        initialize_randomness(2_026_082)
+        first = generate_inference_records(
+            self.messages,
+            self.models,
+            self.generation_end,
+        )
+        random.seed(999)
+        for _ in range(100):
+            random.random()
+        initialize_randomness(2_026_082)
+        second = generate_inference_records(
+            self.messages,
+            self.models,
+            self.generation_end,
+        )
+        self.assertEqual(first, second)
 
     def test_causal_status_token_and_release_rules(self):
         messages = {row["message_id"]: row for row in self.messages}

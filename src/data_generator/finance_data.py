@@ -2,7 +2,6 @@
 
 import calendar
 import json
-import random
 import statistics
 from collections import Counter, defaultdict
 from collections.abc import Iterable
@@ -19,7 +18,7 @@ from .ingestion import (
     remove_local_event_outputs,
 )
 from .reference_data import validate_subscription_plans
-from .utils import generate_uuid
+from .utils import generate_uuid, rng
 from .writers import PartitionedNDJSONWriter
 
 
@@ -187,28 +186,28 @@ def _activity_modifier(conversation_count: int) -> float:
 
 
 def _paid_duration_days() -> int:
-    group = random.choices(
+    group = rng.choices(
         ("SHORT", "MEDIUM", "LONG"),
         weights=(15, 55, 30),
         k=1,
     )[0]
     if group == "SHORT":
-        return random.randint(28, 75)
+        return rng.randint(28, 75)
     if group == "MEDIUM":
-        return random.randint(90, 240)
-    return random.randint(241, 420)
+        return rng.randint(90, 240)
+    return rng.randint(241, 420)
 
 
 def _plan_sequence(
     conversation_count: int,
 ) -> list[str]:
     modifier = _activity_modifier(conversation_count)
-    ever_plus = random.random() < min(0.30, 0.232 * modifier)
-    ever_pro = random.random() < min(0.08, 0.045 * modifier)
+    ever_plus = rng.random() < min(0.30, 0.232 * modifier)
+    ever_pro = rng.random() < min(0.08, 0.045 * modifier)
     if ever_plus and ever_pro:
         return (
             ["PLUS", "PRO"]
-            if random.random() < 0.88
+            if rng.random() < 0.88
             else ["PRO", "PLUS"]
         )
     if ever_pro:
@@ -233,8 +232,8 @@ def _actual_price(plan: dict[str, Any]) -> float:
     list_price = _money(plan["monthly_price"])
     if plan["plan_name"] == "FREE":
         return 0.0
-    if random.random() < 0.15:
-        discount_rate = random.choice(
+    if rng.random() < 0.15:
+        discount_rate = rng.choice(
             (Decimal("0.10"), Decimal("0.15"), Decimal("0.20"))
         )
         return _money_float(list_price * (Decimal("1") - discount_rate))
@@ -359,8 +358,8 @@ def generate_subscriptions(
 
         maximum_delay = min(35, max(7, available_days - 28))
         paid_start = signup_at + timedelta(
-            days=random.randint(7, maximum_delay),
-            seconds=random.randint(0, 86_399),
+            days=rng.randint(7, maximum_delay),
+            seconds=rng.randint(0, 86_399),
         )
         if paid_start >= cutoff:
             subscriptions.append(
@@ -391,7 +390,7 @@ def generate_subscriptions(
             remaining_days = max(0, (cutoff - current_start).days)
             if not is_last:
                 duration_days = min(
-                    random.randint(35, 155),
+                    rng.randint(35, 155),
                     max(1, remaining_days - 14),
                 )
                 period_end = min(
@@ -401,7 +400,7 @@ def generate_subscriptions(
                 status = "EXPIRED"
             else:
                 stays_active = (
-                    user_id not in closed_times and random.random() < 0.80
+                    user_id not in closed_times and rng.random() < 0.80
                 )
                 if stays_active:
                     period_end = None
@@ -447,21 +446,21 @@ def generate_subscriptions(
 
 
 def _attempt_statuses() -> list[str]:
-    outcome = random.random()
+    outcome = rng.random()
     if outcome < 0.93:
         return ["SUCCESS"]
     if outcome < 0.98:
         return ["FAILED", "SUCCESS"]
-    if random.random() < 0.50:
+    if rng.random() < 0.50:
         return ["FAILED", "FAILED", "SUCCESS"]
     return ["FAILED", "FAILED"]
 
 
 def _retry_delay_seconds(attempt_number: int) -> int:
     if attempt_number == 1:
-        return random.randint(300, 7_200)
-    return random.choices(
-        (random.randint(3_600, 21_600), random.randint(21_601, 86_400)),
+        return rng.randint(300, 7_200)
+    return rng.choices(
+        (rng.randint(3_600, 21_600), rng.randint(21_601, 86_400)),
         weights=(80, 20),
         k=1,
     )[0]
@@ -479,7 +478,7 @@ def _purchase_amounts(
     tax_rate = TAX_RATES.get(country_code, Decimal("0.04"))
     tax = (
         Decimal("0.00")
-        if random.random() < 0.35
+        if rng.random() < 0.35
         else _money(taxable * tax_rate)
     )
     total = _money(taxable + tax)
@@ -502,7 +501,7 @@ def build_purchase_and_payments(
         plan,
         user["country_code"],
     )
-    method = random.choices(
+    method = rng.choices(
         PAYMENT_METHODS,
         weights=PAYMENT_METHOD_WEIGHTS,
         k=1,
@@ -512,7 +511,7 @@ def build_purchase_and_payments(
     processed_times = []
     first_processed = purchase_created_at + timedelta(
         seconds=min(
-            random.randint(1, 120),
+            rng.randint(1, 120),
             max(0, int((cutoff - purchase_created_at).total_seconds())),
         )
     )
@@ -531,10 +530,10 @@ def build_purchase_and_payments(
         None,
     )
     refunded_at = None
-    if successful_index is not None and random.random() < 0.02:
+    if successful_index is not None and rng.random() < 0.02:
         candidate = processed_times[successful_index] + timedelta(
-            days=random.randint(1, 14),
-            seconds=random.randint(1, 3_600),
+            days=rng.randint(1, 14),
+            seconds=rng.randint(1, 3_600),
         )
         if candidate <= cutoff:
             refunded_at = candidate

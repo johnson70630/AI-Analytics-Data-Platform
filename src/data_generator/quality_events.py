@@ -1,6 +1,5 @@
 """Sparse feedback and operational error generation with source lineage."""
 
-import random
 import sqlite3
 import tempfile
 from collections import Counter
@@ -17,7 +16,7 @@ from .ingestion import (
     iter_s3_partitioned_records,
     remove_local_event_outputs,
 )
-from .utils import generate_uuid
+from .utils import generate_uuid, rng
 from .writers import PartitionedNDJSONWriter
 
 
@@ -281,21 +280,21 @@ def _bounded_delay(
 
 
 def _feedback_delay_seconds() -> int:
-    group = random.choices(
+    group = rng.choices(
         ("QUICK", "SAME_DAY", "LATER"),
         weights=(85, 12, 3),
         k=1,
     )[0]
     if group == "QUICK":
-        return random.randint(1, 300)
+        return rng.randint(1, 300)
     if group == "SAME_DAY":
-        return random.randint(301, 21_600)
-    return random.randint(21_601, 259_200)
+        return rng.randint(301, 21_600)
+    return rng.randint(21_601, 259_200)
 
 
 def _feedback_propensity(user_id: str, propensities: dict[str, float]) -> float:
     if user_id not in propensities:
-        propensities[user_id] = random.choices(
+        propensities[user_id] = rng.choices(
             (0.45, 1.40, 2.80),
             weights=(70, 25, 5),
             k=1,
@@ -311,7 +310,7 @@ def should_generate_feedback(
     """Apply sparse, persistent user-level feedback propensity."""
     propensity = _feedback_propensity(user_id, propensities)
     latency_modifier = 1.08 if latency_ms >= 2_750 else 1.0
-    return random.random() < 0.085 * propensity * latency_modifier
+    return rng.random() < 0.085 * propensity * latency_modifier
 
 
 def build_feedback_event(
@@ -328,9 +327,9 @@ def build_feedback_event(
         positive_rate -= 0.08
     elif latency_ms >= 1_800:
         positive_rate -= 0.035
-    if random.random() < 0.10:
+    if rng.random() < 0.10:
         feedback_type = "RATING"
-    elif random.random() < positive_rate:
+    elif rng.random() < positive_rate:
         feedback_type = "THUMBS_UP"
     else:
         feedback_type = "THUMBS_DOWN"
@@ -338,10 +337,10 @@ def build_feedback_event(
         score = 1
     elif feedback_type == "THUMBS_DOWN":
         score = -1
-    elif random.random() < positive_rate:
-        score = random.choices((4, 5), weights=(45, 55), k=1)[0]
+    elif rng.random() < positive_rate:
+        score = rng.choices((4, 5), weights=(45, 55), k=1)[0]
     else:
-        score = random.choices((1, 2, 3), weights=(25, 35, 40), k=1)[0]
+        score = rng.choices((1, 2, 3), weights=(25, 35, 40), k=1)[0]
     created_at = _bounded_delay(
         completed_at,
         generation_end,
@@ -368,7 +367,7 @@ def _error_type(source: str) -> tuple[str, str]:
         "BILLING": (60, 40),
         "OTHER": (100,),
     }[source]
-    error_type = random.choices(types, weights=weights, k=1)[0]
+    error_type = rng.choices(types, weights=weights, k=1)[0]
     return error_type, ERROR_TYPE_CODES[source][error_type]
 
 
@@ -376,7 +375,7 @@ def _severity(error_type: str) -> str:
     weights = (10, 30, 55, 5)
     if error_type in {"MODEL_UNAVAILABLE", "DB_CONNECTION_ERROR", "WRITE_FAILURE"}:
         weights = (4, 22, 62, 12)
-    return random.choices(SEVERITIES, weights=weights, k=1)[0]
+    return rng.choices(SEVERITIES, weights=weights, k=1)[0]
 
 
 def _empty_error_context() -> dict[str, str | None]:
@@ -459,21 +458,21 @@ def build_independent_error(
     generation_end: datetime,
 ) -> dict[str, Any]:
     """Build one source-specific error with only logically available context."""
-    message_id, conversation_id, user_id, message_us = random.choice(
+    message_id, conversation_id, user_id, message_us = rng.choice(
         message_contexts
     )
     anchor = _from_us(message_us)
     occurred_at = _bounded_delay(
         anchor,
         generation_end,
-        random.randint(0, 300),
+        rng.randint(0, 300),
     )
     context = _empty_error_context()
 
     if source == "MODEL":
         context["model_id"] = choose_model(models, occurred_at)["model_id"]
     elif source == "APPLICATION":
-        pattern = random.choices(
+        pattern = rng.choices(
             ("MESSAGE", "USER", "SYSTEM"),
             weights=(65, 20, 15),
             k=1,
@@ -487,14 +486,14 @@ def build_independent_error(
         elif pattern == "USER":
             context["user_id"] = user_id
     elif source == "DATABASE":
-        if random.random() < 0.55:
+        if rng.random() < 0.55:
             context.update(
                 user_id=user_id,
                 conversation_id=conversation_id,
                 message_id=message_id,
             )
     elif source == "NETWORK":
-        pattern = random.choices(
+        pattern = rng.choices(
             ("MESSAGE", "INFERENCE", "USER", "SYSTEM"),
             weights=(45, 35, 10, 10),
             k=1,
@@ -516,7 +515,7 @@ def build_independent_error(
                 inference_message_id,
                 inference_conversation_id,
                 completed_us,
-            ) = random.choice(inference_contexts)
+            ) = rng.choice(inference_contexts)
             context.update(
                 user_id=inference_user_id,
                 conversation_id=inference_conversation_id,
@@ -529,9 +528,9 @@ def build_independent_error(
         elif pattern == "USER":
             context["user_id"] = user_id
     elif source == "BILLING":
-        if random.random() < 0.85:
+        if rng.random() < 0.85:
             context["user_id"] = user_id
-    elif source == "OTHER" and random.random() < 0.35:
+    elif source == "OTHER" and rng.random() < 0.35:
         context["user_id"] = user_id
 
     error_type, error_code = _error_type(source)
@@ -601,8 +600,8 @@ def generate_quality_events_locally(
                     )
                     feedback_count += 1
 
-            target = error_target or random.randint(20_000, 25_000)
-            sources = random.choices(
+            target = error_target or rng.randint(20_000, 25_000)
+            sources = rng.choices(
                 ERROR_SOURCES,
                 weights=ERROR_SOURCE_WEIGHTS,
                 k=target,
@@ -621,7 +620,7 @@ def generate_quality_events_locally(
                     """
                 )
             )
-            random.shuffle(failed_lineages)
+            rng.shuffle(failed_lineages)
             linked_index = 0
             for source in sources:
                 if source == "MODEL" and linked_index < linked_target:

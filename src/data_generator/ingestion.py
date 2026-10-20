@@ -1,7 +1,6 @@
 """Shared event ingestion timestamps, daily partitioning, and validation."""
 
 import json
-import random
 from collections import Counter, defaultdict
 from collections.abc import Iterator
 from datetime import date, datetime, timedelta, timezone
@@ -11,6 +10,7 @@ from typing import Any
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
+from .utils import rng
 from .writers import write_records_locally, write_records_to_s3
 
 
@@ -76,18 +76,18 @@ S3_REPLACEMENT_KEYS = {
 
 
 def _ingestion_delay_seconds() -> int:
-    delay_group = random.choices(
+    delay_group = rng.choices(
         ("FAST", "MINUTES", "HOURS", "LATE"),
         weights=(95, 4, 0.8, 0.2),
         k=1,
     )[0]
     if delay_group == "FAST":
-        return random.randint(0, 30)
+        return rng.randint(0, 30)
     if delay_group == "MINUTES":
-        return random.randint(31, 1_800)
+        return rng.randint(31, 1_800)
     if delay_group == "HOURS":
-        return random.randint(1_801, 21_600)
-    return random.randint(21_601, 172_800)
+        return rng.randint(1_801, 21_600)
+    return rng.randint(21_601, 172_800)
 
 
 def ingestion_timestamp(

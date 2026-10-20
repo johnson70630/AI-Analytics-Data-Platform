@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import random
 import time
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -46,7 +45,7 @@ from .user_data import (
     _new_email,
     _new_name,
 )
-from .utils import generate_uuid, initialize_randomness
+from .utils import generate_uuid, initialize_randomness, rng
 from .writers import serialize_ndjson
 
 
@@ -329,18 +328,18 @@ def load_daily_state(client: Any, bucket: str, historical_max: date) -> dict:
 
 
 def _at_on_day(simulation_date: date, *, earliest_second: int = 0) -> datetime:
-    second = random.randint(earliest_second, 86_398)
+    second = rng.randint(earliest_second, 86_398)
     return datetime.combine(simulation_date, day_time.min, timezone.utc) + timedelta(
         seconds=second
     )
 
 
 def _device_id(devices: list[dict]) -> str | None:
-    if random.random() < 0.0075:
+    if rng.random() < 0.0075:
         return None
-    platform = random.choices(PLATFORMS, weights=PLATFORM_WEIGHTS, k=1)[0]
+    platform = rng.choices(PLATFORMS, weights=PLATFORM_WEIGHTS, k=1)[0]
     candidates = [row for row in devices if row["app_platform"] == platform]
-    return random.choices(
+    return rng.choices(
         [row["device_id"] for row in candidates],
         weights=[DEVICE_WEIGHTS[row["device_id"]] for row in candidates],
         k=1,
@@ -353,7 +352,7 @@ def _generate_updates(
     last_activity_by_user: dict[str, datetime],
 ) -> list[dict]:
     eligible = [user_id for user_id in active_ids if state[user_id]["account_status"] != "CLOSED"]
-    selected = random.sample(eligible, min(target, len(eligible)))
+    selected = rng.sample(eligible, min(target, len(eligible)))
     rows = []
     for user_id in selected:
         current = state[user_id]
@@ -416,7 +415,7 @@ def _generate_activity(
         for row in users
         if user_state[row["user_id"]]["account_status"] != "CLOSED"
     ]
-    active_ids = random.sample(eligible, min(active_target, len(eligible)))
+    active_ids = rng.sample(eligible, min(active_target, len(eligible)))
     new_count = max(1, round(_average(counts["conversations"], historical_max, 7)))
     continued_count = max(1, round(new_count * 0.12))
     message_target = max(
@@ -440,12 +439,12 @@ def _generate_activity(
         if conversation_id in recent_conversations
         and user_state[message["user_id"]]["account_status"] != "CLOSED"
     ]
-    selected_continued = random.sample(candidates, min(continued_count, len(candidates)))
+    selected_continued = rng.sample(candidates, min(continued_count, len(candidates)))
 
     conversations = []
     sessions = []
     for _ in range(new_count):
-        user_id = random.choice(active_ids)
+        user_id = rng.choice(active_ids)
         created_at = _at_on_day(simulation_date)
         conversation = {
             "conversation_id": generate_uuid(),
@@ -469,14 +468,14 @@ def _generate_activity(
 
     allocations = [1] * len(sessions)
     for _ in range(message_target - len(sessions)):
-        allocations[random.randrange(len(sessions))] += 1
+        allocations[rng.randrange(len(sessions))] += 1
     messages = []
     for session, count in zip(sessions, allocations):
         conversation, prior_sequence, lower_bound, previous_device = session
         available = max(1, int((generation_end - lower_bound).total_seconds()))
-        offsets = sorted(random.sample(range(1, available + 1), min(count, available)))
+        offsets = sorted(rng.sample(range(1, available + 1), min(count, available)))
         for index, offset in enumerate(offsets, start=1):
-            if previous_device is None or random.random() < 0.12:
+            if previous_device is None or rng.random() < 0.12:
                 previous_device = _device_id(state["devices"])
             created_at = lower_bound + timedelta(seconds=offset)
             messages.append(
@@ -551,9 +550,9 @@ def _generate_quality(
         )
         for row in messages
     ]
-    sources = random.choices(ERROR_SOURCES, weights=ERROR_SOURCE_WEIGHTS, k=error_target)
+    sources = rng.choices(ERROR_SOURCES, weights=ERROR_SOURCE_WEIGHTS, k=error_target)
     linked_target = min(len(failed), round(sources.count("MODEL") * 0.82))
-    random.shuffle(failed)
+    rng.shuffle(failed)
     errors = []
     linked_index = 0
     for source in sources:

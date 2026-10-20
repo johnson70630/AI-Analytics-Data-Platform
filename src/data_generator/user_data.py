@@ -1,6 +1,5 @@
 """Realistic operational users and user change-event generation."""
 
-import random
 import re
 from collections import Counter
 from datetime import date, datetime, time, timedelta, timezone
@@ -8,7 +7,7 @@ from typing import Any
 
 from faker import Faker
 
-from .utils import generate_uuid
+from .utils import generate_uuid, rng
 
 
 USER_COUNT = 10_000
@@ -73,9 +72,9 @@ def _generation_end(partition_date: date) -> datetime:
 
 
 def _weighted_country() -> str:
-    country = random.choices(PRIMARY_COUNTRIES, weights=COUNTRY_WEIGHTS, k=1)[0]
+    country = rng.choices(PRIMARY_COUNTRIES, weights=COUNTRY_WEIGHTS, k=1)[0]
     if country == "OTHER":
-        return random.choice(OTHER_COUNTRIES)
+        return rng.choice(OTHER_COUNTRIES)
     return country
 
 
@@ -83,7 +82,7 @@ def _signup_timestamp(partition_date: date) -> datetime:
     end_at = _generation_end(partition_date)
     window_seconds = 365 * 24 * 60 * 60
     # This curve modestly favors recent signups without imposing rigid seasonality.
-    seconds_ago = int(window_seconds * (random.random() ** 1.3))
+    seconds_ago = int(window_seconds * (rng.random() ** 1.3))
     return end_at - timedelta(seconds=seconds_ago)
 
 
@@ -95,17 +94,17 @@ def generate_users(fake: Faker, partition_date: date) -> list[dict[str, Any]]:
             {
                 "user_id": generate_uuid(),
                 "email": fake.unique.email(),
-                "name": None if random.random() < 0.04 else fake.name(),
+                "name": None if rng.random() < 0.04 else fake.name(),
                 "country_code": _weighted_country(),
-                "account_status": random.choices(
+                "account_status": rng.choices(
                     ACCOUNT_STATUSES,
                     weights=ACCOUNT_STATUS_WEIGHTS,
                     k=1,
                 )[0],
                 "signup_source": (
                     None
-                    if random.random() < 0.01
-                    else random.choices(
+                    if rng.random() < 0.01
+                    else rng.choices(
                         SIGNUP_SOURCES,
                         weights=SIGNUP_SOURCE_WEIGHTS,
                         k=1,
@@ -125,7 +124,7 @@ def _choose_update_field(state: dict[str, Any]) -> str:
         for field in UPDATE_FIELDS
         if not (field == "account_status" and state[field] == "CLOSED")
     ]
-    return random.choices(
+    return rng.choices(
         available_fields,
         weights=[UPDATE_FIELD_WEIGHTS[field] for field in available_fields],
         k=1,
@@ -145,7 +144,7 @@ def _new_account_status(old_value: str) -> str:
         "SUSPENDED": (("ACTIVE", "CLOSED"), (90, 10)),
     }
     values, weights = transitions[old_value]
-    return random.choices(values, weights=weights, k=1)[0]
+    return rng.choices(values, weights=weights, k=1)[0]
 
 
 def _new_name(fake: Faker, old_value: str | None) -> str:
@@ -180,7 +179,7 @@ def generate_user_updates(
             "available after signup"
         )
 
-    selected_users = random.sample(eligible_users, UPDATED_USER_COUNT)
+    selected_users = rng.sample(eligible_users, UPDATED_USER_COUNT)
     state_by_user = {
         user["user_id"]: {
             "country_code": user["country_code"],
@@ -196,7 +195,7 @@ def generate_user_updates(
         event_count = 2 if user_number < MULTI_UPDATE_USER_COUNT else 1
         available_seconds = int((end_at - user["signup_at"]).total_seconds())
         offsets = sorted(
-            random.sample(range(1, available_seconds + 1), event_count)
+            rng.sample(range(1, available_seconds + 1), event_count)
         )
         state = state_by_user[user["user_id"]]
 
