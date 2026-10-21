@@ -19,5 +19,3 @@ models:
     gold:
       +materialized: table
       +schema: gold
-      +grants:
-        select: ['analytics_reader']

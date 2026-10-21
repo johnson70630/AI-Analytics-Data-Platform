@@ -1,3 +1,12 @@
+{% if target.type == 'databricks' %}
+    {{ config(materialized='table', grants={}) }}
+{% else %}
+    {{ config(
+        materialized='table',
+        grants={'select': ['analytics_reader']}
+    ) }}
+{% endif %}
+
 with activity_dates as (
     select date_key from {{ ref('fact_message') }}
     union all

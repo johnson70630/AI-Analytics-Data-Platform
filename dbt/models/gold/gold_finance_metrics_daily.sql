@@ -1,3 +1,12 @@
+{% if target.type == 'databricks' %}
+    {{ config(materialized='table', grants={}) }}
+{% else %}
+    {{ config(
+        materialized='table',
+        grants={'select': ['analytics_reader']}
+    ) }}
+{% endif %}
+
 with subscription_start_daily as (
     select
         date_key,

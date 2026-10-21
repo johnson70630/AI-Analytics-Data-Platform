@@ -1,3 +1,12 @@
+{% if target.type == 'databricks' %}
+    {{ config(materialized='table', grants={}) }}
+{% else %}
+    {{ config(
+        materialized='table',
+        grants={'select': ['analytics_reader']}
+    ) }}
+{% endif %}
+
 with message_user_daily as (
     select
         user_id,

@@ -1,4 +1,6 @@
-select 'product' as mart_name, cast(date_key as varchar) as grain_key
+select
+    'product' as mart_name,
+    {{ staging_cast('date_key', 'varchar') }} as grain_key
 from {{ ref('gold_product_metrics_daily') }}
 where active_users < 0
    or conversation_count < 0
@@ -16,7 +18,7 @@ where active_users < 0
 
 union all
 
-select 'finance', cast(date_key as varchar)
+select 'finance', {{ staging_cast('date_key', 'varchar') }}
 from {{ ref('gold_finance_metrics_daily') }}
 where subscription_start_count < 0
    or subscription_end_count < 0
@@ -34,7 +36,7 @@ union all
 
 select
     'ml',
-    cast(date_key as varchar) || '|'
+    {{ staging_cast('date_key', 'varchar') }} || '|'
         || coalesce(model_key, model_id, '__UNRESOLVED__')
 from {{ ref('gold_ml_metrics_daily') }}
 where inference_count < 0
@@ -53,7 +55,9 @@ where inference_count < 0
 
 union all
 
-select 'user_activity', cast(date_key as varchar) || '|' || user_id
+select
+    'user_activity',
+    {{ staging_cast('date_key', 'varchar') }} || '|' || user_id
 from {{ ref('gold_user_activity_daily') }}
 where message_count < 0
    or conversation_count < 0
