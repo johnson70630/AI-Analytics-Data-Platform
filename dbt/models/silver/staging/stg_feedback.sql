@@ -1,9 +1,9 @@
 with source_data as (
     select
-        cast(feedback_id as varchar) as feedback_id,
-        cast(completion_id as varchar) as completion_id,
-        cast(user_id as varchar) as user_id,
-        cast(feedback_type as varchar) as feedback_type,
+        {{ staging_cast('feedback_id', 'varchar') }} as feedback_id,
+        {{ staging_cast('completion_id', 'varchar') }} as completion_id,
+        {{ staging_cast('user_id', 'varchar') }} as user_id,
+        {{ staging_cast('feedback_type', 'varchar') }} as feedback_type,
         {{ staging_cast('feedback_score', 'integer') }} as feedback_score,
         {{ staging_cast('created_at', 'timestamp') }} as created_at,
         {{ staging_cast('ingested_at', 'timestamp') }} as ingested_at,

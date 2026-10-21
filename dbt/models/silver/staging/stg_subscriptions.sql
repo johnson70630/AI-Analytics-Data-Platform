@@ -1,11 +1,11 @@
 with source_data as (
     select
-        cast(subscription_id as varchar) as subscription_id,
-        cast(user_id as varchar) as user_id,
-        cast(plan_id as varchar) as plan_id,
+        {{ staging_cast('subscription_id', 'varchar') }} as subscription_id,
+        {{ staging_cast('user_id', 'varchar') }} as user_id,
+        {{ staging_cast('plan_id', 'varchar') }} as plan_id,
         {{ staging_cast('started_at', 'timestamp') }} as started_at,
         {{ staging_cast('ended_at', 'timestamp') }} as ended_at,
-        cast(subscription_status as varchar) as subscription_status,
+        {{ staging_cast('subscription_status', 'varchar') }} as subscription_status,
         {{ staging_cast('actual_monthly_price', 'decimal(18, 2)') }}
             as actual_monthly_price,
         {{ staging_cast('updated_at', 'timestamp') }} as updated_at,

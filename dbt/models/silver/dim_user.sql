@@ -1,9 +1,13 @@
-{{ config(
-    materialized='table',
-    grants={
-        'select': ['analytics_reader', 'pii_approved']
-    }
-) }}
+{% if target.type == 'databricks' %}
+    {{ config(materialized='table') }}
+{% else %}
+    {{ config(
+        materialized='table',
+        grants={
+            'select': ['analytics_reader', 'pii_approved']
+        }
+    ) }}
+{% endif %}
 
 with snapshot_boundaries as (
     select
@@ -60,9 +64,7 @@ combined_versions as (
 )
 
 select
-    md5(
-        user_id || '|' || cast(effective_start_at as varchar)
-    ) as user_key,
+    {{ user_version_key('user_id', 'effective_start_at') }} as user_key,
     user_id,
     country_code,
     account_status,

@@ -1,10 +1,10 @@
 with source_data as (
     select
-        cast(update_id as varchar) as update_id,
-        cast(user_id as varchar) as user_id,
-        cast(field_name as varchar) as field_name,
-        cast(old_value as varchar) as old_value,
-        cast(new_value as varchar) as new_value,
+        {{ staging_cast('update_id', 'varchar') }} as update_id,
+        {{ staging_cast('user_id', 'varchar') }} as user_id,
+        {{ staging_cast('field_name', 'varchar') }} as field_name,
+        {{ staging_cast('old_value', 'varchar') }} as old_value,
+        {{ staging_cast('new_value', 'varchar') }} as new_value,
         {{ staging_cast('updated_at', 'timestamp') }} as updated_at,
         {{ staging_cast('ingested_at', 'timestamp') }} as ingested_at,
         {{ staging_partition_date() }} as physical_partition_date

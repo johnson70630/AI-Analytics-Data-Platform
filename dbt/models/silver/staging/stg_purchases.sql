@@ -1,11 +1,11 @@
 with source_data as (
     select
-        cast(purchase_id as varchar) as purchase_id,
-        cast(user_id as varchar) as user_id,
-        cast(subscription_id as varchar) as subscription_id,
-        cast(plan_id as varchar) as plan_id,
-        cast(purchase_type as varchar) as purchase_type,
-        cast(purchase_status as varchar) as purchase_status,
+        {{ staging_cast('purchase_id', 'varchar') }} as purchase_id,
+        {{ staging_cast('user_id', 'varchar') }} as user_id,
+        {{ staging_cast('subscription_id', 'varchar') }} as subscription_id,
+        {{ staging_cast('plan_id', 'varchar') }} as plan_id,
+        {{ staging_cast('purchase_type', 'varchar') }} as purchase_type,
+        {{ staging_cast('purchase_status', 'varchar') }} as purchase_status,
         {{ staging_cast('subtotal_amount', 'decimal(18, 2)') }}
             as subtotal_amount,
         {{ staging_cast('discount_amount', 'decimal(18, 2)') }}

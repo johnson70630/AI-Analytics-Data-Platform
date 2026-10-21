@@ -1,10 +1,10 @@
 with source_data as (
     select
-        cast(payment_id as varchar) as payment_id,
-        cast(purchase_id as varchar) as purchase_id,
-        cast(user_id as varchar) as user_id,
-        cast(payment_status as varchar) as payment_status,
-        cast(payment_method as varchar) as payment_method,
+        {{ staging_cast('payment_id', 'varchar') }} as payment_id,
+        {{ staging_cast('purchase_id', 'varchar') }} as purchase_id,
+        {{ staging_cast('user_id', 'varchar') }} as user_id,
+        {{ staging_cast('payment_status', 'varchar') }} as payment_status,
+        {{ staging_cast('payment_method', 'varchar') }} as payment_method,
         {{ staging_cast('payment_amount', 'decimal(18, 2)') }}
             as payment_amount,
         {{ staging_cast('refund_amount', 'decimal(18, 2)') }}

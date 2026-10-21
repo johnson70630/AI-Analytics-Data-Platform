@@ -1,13 +1,13 @@
 with source_data as (
     select
-        cast(completion_id as varchar) as completion_id,
-        cast(message_id as varchar) as message_id,
-        cast(conversation_id as varchar) as conversation_id,
-        cast(user_id as varchar) as source_user_id,
-        cast(completion_status as varchar) as completion_status,
+        {{ staging_cast('completion_id', 'varchar') }} as completion_id,
+        {{ staging_cast('message_id', 'varchar') }} as message_id,
+        {{ staging_cast('conversation_id', 'varchar') }} as conversation_id,
+        {{ staging_cast('user_id', 'varchar') }} as source_user_id,
+        {{ staging_cast('completion_status', 'varchar') }} as completion_status,
         {{ staging_cast('requested_at', 'timestamp') }} as requested_at,
         {{ staging_cast('completed_at', 'timestamp') }} as completed_at,
-        cast(response_text as varchar) as response_text,
+        {{ staging_cast('response_text', 'varchar') }} as response_text,
         {{ staging_cast('ingested_at', 'timestamp') }} as ingested_at,
         {{ staging_partition_date() }} as physical_partition_date
     from {{ source('bronze', 'completions') }}

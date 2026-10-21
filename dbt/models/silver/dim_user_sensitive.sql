@@ -1,10 +1,14 @@
-{{ config(
-    materialized='table',
-    grants={
-        'select': ['pii_approved']
-    },
-    post_hook='revoke all on {{ this }} from public, analytics_reader'
-) }}
+{% if target.type == 'databricks' %}
+    {{ config(materialized='table') }}
+{% else %}
+    {{ config(
+        materialized='table',
+        grants={
+            'select': ['pii_approved']
+        },
+        post_hook='revoke all on {{ this }} from public, analytics_reader'
+    ) }}
+{% endif %}
 
 select
     users.user_key,

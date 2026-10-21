@@ -1,9 +1,9 @@
 with source_data as (
     select
-        cast(plan_id as varchar) as plan_id,
-        cast(plan_name as varchar) as plan_name,
+        {{ staging_cast('plan_id', 'varchar') }} as plan_id,
+        {{ staging_cast('plan_name', 'varchar') }} as plan_name,
         {{ staging_cast('monthly_price', 'decimal(18, 2)') }} as monthly_price,
-        cast(currency as varchar) as currency,
+        {{ staging_cast('currency', 'varchar') }} as currency,
         {{ staging_cast('active_flag', 'boolean') }} as active_flag,
         {{ staging_partition_date() }} as physical_partition_date
     from {{ source('bronze', 'subscription_plans') }}

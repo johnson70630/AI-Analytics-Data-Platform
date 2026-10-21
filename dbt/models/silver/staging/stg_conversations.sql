@@ -1,7 +1,7 @@
 with source_data as (
     select
-        cast(conversation_id as varchar) as conversation_id,
-        cast(user_id as varchar) as user_id,
+        {{ staging_cast('conversation_id', 'varchar') }} as conversation_id,
+        {{ staging_cast('user_id', 'varchar') }} as user_id,
         {{ staging_cast('created_at', 'timestamp') }} as created_at,
         {{ staging_cast('ingested_at', 'timestamp') }} as ingested_at,
         {{ staging_partition_date() }} as physical_partition_date

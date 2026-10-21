@@ -1,10 +1,10 @@
 with source_data as (
     select
-        cast(device_id as varchar) as device_id,
-        cast(device_type as varchar) as device_type,
-        cast(operating_system as varchar) as operating_system,
-        cast(browser as varchar) as browser,
-        cast(app_platform as varchar) as app_platform,
+        {{ staging_cast('device_id', 'varchar') }} as device_id,
+        {{ staging_cast('device_type', 'varchar') }} as device_type,
+        {{ staging_cast('operating_system', 'varchar') }} as operating_system,
+        {{ staging_cast('browser', 'varchar') }} as browser,
+        {{ staging_cast('app_platform', 'varchar') }} as app_platform,
         {{ staging_partition_date() }} as physical_partition_date
     from {{ source('bronze', 'devices') }}
 ),

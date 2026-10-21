@@ -2,11 +2,12 @@ version: 2
 
 sources:
   - name: bronze
-    schema: landing
+    database: "{{ 'ai_analytics' if target.type == 'databricks' else target.database }}"
+    schema: "{{ 'bronze' if target.type == 'databricks' else 'landing' }}"
     description: >
-      PostgreSQL landing tables loaded from the 14 S3 Bronze source entities.
-      Selected entities contain controlled data-quality issues used by the
-      Silver cleaning pipeline.
+      Bronze inputs for the Silver cleaning pipeline. PostgreSQL V1 reads
+      landing tables, while Databricks V2 reads managed Delta Bronze tables.
+      Selected entities contain controlled data-quality issues.
 
     tables:
       - name: models

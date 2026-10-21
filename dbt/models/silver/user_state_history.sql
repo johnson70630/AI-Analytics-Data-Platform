@@ -87,8 +87,8 @@ state_events as (
     select
         users.user_id,
         users.signup_at as effective_start_at,
-        cast(null as varchar) as version_update_id,
-        cast(null as varchar) as type2_change_field,
+        {{ staging_cast('null', 'varchar') }} as version_update_id,
+        {{ staging_cast('null', 'varchar') }} as type2_change_field,
         users.country_code as country_code_value,
         users.account_status as account_status_value
     from base_users as users
@@ -109,6 +109,30 @@ state_events as (
     from type2_change_events as updates
 ),
 
+{% if target.type == 'databricks' %}
+reconstructed_states as (
+    select
+        events.user_id,
+        events.effective_start_at,
+        events.version_update_id,
+        events.type2_change_field,
+        last_value(events.country_code_value, true) over (
+            partition by events.user_id
+            order by
+                events.effective_start_at,
+                coalesce(events.version_update_id, '')
+            rows between unbounded preceding and current row
+        ) as country_code,
+        last_value(events.account_status_value, true) over (
+            partition by events.user_id
+            order by
+                events.effective_start_at,
+                coalesce(events.version_update_id, '')
+            rows between unbounded preceding and current row
+        ) as account_status
+    from state_events as events
+),
+{% else %}
 reconstructed_states as (
     select
         events.user_id,
@@ -153,6 +177,7 @@ reconstructed_states as (
         ) as account_status
     from state_events as events
 ),
+{% endif %}
 
 versioned_states as (
     select

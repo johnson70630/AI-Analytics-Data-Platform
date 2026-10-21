@@ -1,15 +1,15 @@
 with source_data as (
     select
-        cast(inference_id as varchar) as inference_id,
-        cast(completion_id as varchar) as completion_id,
-        cast(user_id as varchar) as user_id,
-        cast(model_id as varchar) as model_id,
+        {{ staging_cast('inference_id', 'varchar') }} as inference_id,
+        {{ staging_cast('completion_id', 'varchar') }} as completion_id,
+        {{ staging_cast('user_id', 'varchar') }} as user_id,
+        {{ staging_cast('model_id', 'varchar') }} as model_id,
         {{ staging_cast('request_at', 'timestamp') }} as request_at,
         {{ staging_cast('response_at', 'timestamp') }} as response_at,
         {{ staging_cast('latency_ms', 'bigint') }} as latency_ms,
         {{ staging_cast('input_tokens', 'bigint') }} as input_tokens,
         {{ staging_cast('output_tokens', 'bigint') }} as output_tokens,
-        cast(inference_status as varchar) as inference_status,
+        {{ staging_cast('inference_status', 'varchar') }} as inference_status,
         {{ staging_cast('ingested_at', 'timestamp') }} as ingested_at,
         {{ staging_partition_date() }} as physical_partition_date
     from {{ source('bronze', 'model_inferences') }}

@@ -1,9 +1,9 @@
 with source_data as (
     select
-        cast(model_id as varchar) as model_id,
-        cast(model_name as varchar) as model_name,
-        cast(model_version as varchar) as model_version,
-        cast(provider as varchar) as provider,
+        {{ staging_cast('model_id', 'varchar') }} as model_id,
+        {{ staging_cast('model_name', 'varchar') }} as model_name,
+        {{ staging_cast('model_version', 'varchar') }} as model_version,
+        {{ staging_cast('provider', 'varchar') }} as provider,
         {{ staging_cast('release_date', 'date') }} as release_date,
         {{ staging_cast('active_flag', 'boolean') }} as active_flag,
         {{ staging_partition_date() }} as physical_partition_date

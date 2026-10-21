@@ -1,3 +1,65 @@
+{% if target.type == 'databricks' %}
+with relevant_dates as (
+    select release_date as calendar_date
+    from {{ ref('stg_models') }}
+
+    union all
+
+    select explode(array(
+        cast(signup_at as date),
+        cast(source_user_partition_date as date),
+        cast(latest_user_update_at as date)
+    )) as calendar_date
+    from {{ ref('current_user_state') }}
+
+    union all
+
+    select explode(array(
+        cast(started_at as date),
+        cast(ended_at as date),
+        cast(updated_at as date)
+    )) as calendar_date
+    from {{ ref('stg_subscriptions') }}
+
+    union all
+
+    select explode(array(
+        cast(dbt_valid_from as date),
+        cast(dbt_valid_to as date)
+    )) as calendar_date
+    from {{ ref('dim_user_snapshot') }}
+),
+
+date_bounds as (
+    select
+        date_sub(min(calendar_date), 1) as minimum_date,
+        date_add(max(calendar_date), 1) as maximum_date
+    from relevant_dates
+    where calendar_date is not null
+),
+
+calendar as (
+    select explode(sequence(
+        minimum_date,
+        maximum_date,
+        interval 1 day
+    )) as full_date
+    from date_bounds
+)
+
+select
+    cast(date_format(full_date, 'yyyyMMdd') as integer) as date_key,
+    full_date,
+    weekday(full_date) + 1 as day_of_week,
+    dayofmonth(full_date) as day_of_month,
+    weekofyear(full_date) as week_of_year,
+    month(full_date) as month_number,
+    date_format(full_date, 'MMMM') as month_name,
+    quarter(full_date) as quarter,
+    year(full_date) as year,
+    weekday(full_date) + 1 in (6, 7) as is_weekend
+from calendar
+{% else %}
 with relevant_dates as (
     select release_date as calendar_date
     from {{ ref('stg_models') }}
@@ -60,3 +122,4 @@ select
     extract(year from full_date)::integer as year,
     cast(to_char(full_date, 'ID') as integer) in (6, 7) as is_weekend
 from calendar
+{% endif %}
