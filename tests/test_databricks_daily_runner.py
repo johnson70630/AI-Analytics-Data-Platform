@@ -227,6 +227,100 @@ class DailyRunnerTests(unittest.TestCase):
         self.assertEqual(result["simulation_date"], SIMULATION_DATE)
         self.assertEqual(mocks[1].call_args.args[1], SIMULATION_DATE)
 
+    def test_explicit_completed_day_short_circuits_before_generation(self):
+        self.state = _state(SIMULATION_DATE)
+        patchers = self._patch_pipeline()
+        mocks = [patcher.start() for patcher in patchers]
+        self.addCleanup(lambda: [patcher.stop() for patcher in reversed(patchers)])
+
+        result = runner.run_daily_generator(
+            self.spark,
+            simulation_date=SIMULATION_DATE,
+        )
+
+        self.assertEqual(result["mode"], "ALREADY_COMPLETED")
+        self.assertEqual(result["current_generator_date"], SIMULATION_DATE)
+        self.assertIsNone(result["clean_counts"])
+        self.assertIsNone(result["bronze_physical_counts"])
+        self.assertTrue(result["completed"])
+        self.assertFalse(result["bronze_write_attempted"])
+        self.assertFalse(result["state_update_attempted"])
+        for mock in mocks[1:]:
+            mock.assert_not_called()
+
+    def test_completed_day_write_mode_also_performs_zero_mutations(self):
+        self.state = _state(SIMULATION_DATE)
+        patchers = self._patch_pipeline()
+        mocks = [patcher.start() for patcher in patchers]
+        self.addCleanup(lambda: [patcher.stop() for patcher in reversed(patchers)])
+
+        result = runner.run_daily_generator(
+            self.spark,
+            simulation_date=SIMULATION_DATE,
+            dry_run=False,
+        )
+
+        self.assertEqual(result["mode"], "ALREADY_COMPLETED")
+        self.assertTrue(result["completed"])
+        mocks[1].assert_not_called()
+        mocks[3].assert_not_called()
+        mocks[6].assert_not_called()
+        mocks[7].assert_not_called()
+
+    def test_partial_retry_from_prior_state_uses_normal_generation_path(self):
+        patchers = self._patch_pipeline()
+        mocks = [patcher.start() for patcher in patchers]
+        self.addCleanup(lambda: [patcher.stop() for patcher in reversed(patchers)])
+
+        result = runner.run_daily_generator(
+            self.spark,
+            simulation_date=SIMULATION_DATE,
+            dry_run=False,
+        )
+
+        self.assertEqual(result["mode"], "WRITE")
+        mocks[1].assert_called_once()
+        mocks[6].assert_called_once()
+        mocks[7].assert_called_once()
+
+    def test_automatic_mode_advances_completed_state_to_next_day(self):
+        self.state = _state(SIMULATION_DATE)
+        patchers = self._patch_pipeline()
+        mocks = [patcher.start() for patcher in patchers]
+        self.addCleanup(lambda: [patcher.stop() for patcher in reversed(patchers)])
+
+        result = runner.run_daily_generator(self.spark)
+
+        expected = date(2026, 8, 24)
+        self.assertEqual(result["simulation_date"], expected)
+        self.assertEqual(result["mode"], "DRY_RUN")
+        self.assertEqual(mocks[1].call_args.args[1], expected)
+
+    def test_stale_explicit_date_is_rejected_before_generation(self):
+        self.state = _state(date(2026, 8, 24))
+        patchers = self._patch_pipeline()
+        mocks = [patcher.start() for patcher in patchers]
+        self.addCleanup(lambda: [patcher.stop() for patcher in reversed(patchers)])
+
+        with self.assertRaisesRegex(ValueError, "stale"):
+            runner.run_daily_generator(
+                self.spark,
+                simulation_date=SIMULATION_DATE,
+            )
+        mocks[1].assert_not_called()
+
+    def test_gap_explicit_date_is_rejected_before_generation(self):
+        patchers = self._patch_pipeline()
+        mocks = [patcher.start() for patcher in patchers]
+        self.addCleanup(lambda: [patcher.stop() for patcher in reversed(patchers)])
+
+        with self.assertRaisesRegex(ValueError, "gap"):
+            runner.run_daily_generator(
+                self.spark,
+                simulation_date=date(2026, 8, 24),
+            )
+        mocks[1].assert_not_called()
+
     def test_inconsistent_daily_count_dates_are_rejected(self):
         state = _state()
         state["counts"]["errors"] = Counter({date(2026, 8, 21): 1})

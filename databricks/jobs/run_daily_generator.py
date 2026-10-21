@@ -28,8 +28,8 @@ def _latest_generator_dates(state: Mapping[str, Any]) -> dict[str, date]:
     return latest
 
 
-def infer_simulation_date(state: Mapping[str, Any]) -> date:
-    """Infer the next date only when all generator count streams agree."""
+def current_generator_date(state: Mapping[str, Any]) -> date:
+    """Return the consistent completion-marker date across all count streams."""
     latest = _latest_generator_dates(state)
     current_dates = set(latest.values())
     if len(current_dates) != 1:
@@ -37,20 +37,60 @@ def infer_simulation_date(state: Mapping[str, Any]) -> date:
             "generator daily-count latest dates are inconsistent: "
             f"{dict(sorted(latest.items()))}"
         )
-    return next(iter(current_dates)) + timedelta(days=1)
+    return next(iter(current_dates))
+
+
+def infer_simulation_date(state: Mapping[str, Any]) -> date:
+    """Infer the next date only when all generator count streams agree."""
+    return current_generator_date(state) + timedelta(days=1)
 
 
 def _resolve_simulation_date(
     state: Mapping[str, Any], requested_date: date | None
-) -> date:
+) -> tuple[date, str, date]:
+    current_date = current_generator_date(state)
     if requested_date is None:
-        return infer_simulation_date(state)
+        return current_date + timedelta(days=1), "RUN", current_date
     if not isinstance(requested_date, date) or isinstance(requested_date, datetime):
         raise TypeError("simulation_date must be a datetime.date or None")
+    if requested_date == current_date:
+        return requested_date, "ALREADY_COMPLETED", current_date
     state_updater.validate_date_sequence(
         _latest_generator_dates(state), requested_date
     )
-    return requested_date
+    return requested_date, "RUN", current_date
+
+
+def _already_completed_summary(
+    simulation_date: date,
+    current_date: date,
+    seed: int,
+    source_schema: str,
+    bronze_schema: str,
+) -> dict[str, Any]:
+    return {
+        "simulation_date": simulation_date,
+        "seed": seed,
+        "source_schema": source_schema,
+        "bronze_schema": bronze_schema,
+        "mode": "ALREADY_COMPLETED",
+        "current_generator_date": current_date,
+        "reason": "generator state already completed through requested date",
+        "clean_counts": None,
+        "bronze_physical_counts": None,
+        "injection_issue_count": None,
+        "injection_issue_counts_by_type": None,
+        "injection_violation_counts_by_type": None,
+        "clean_validation": None,
+        "bronze_validation": None,
+        "state_validation": None,
+        "bronze_write_attempted": False,
+        "bronze_write_summary": None,
+        "state_update_attempted": False,
+        "state_update_summary": None,
+        "post_write_validation": None,
+        "completed": True,
+    }
 
 
 def _record_counts(
@@ -161,7 +201,17 @@ def run_daily_generator(
         spark,
         source_schema=source_schema,
     )
-    resolved_date = _resolve_simulation_date(state, simulation_date)
+    resolved_date, disposition, current_date = _resolve_simulation_date(
+        state, simulation_date
+    )
+    if disposition == "ALREADY_COMPLETED":
+        return _already_completed_summary(
+            resolved_date,
+            current_date,
+            seed,
+            source_schema,
+            bronze_schema,
+        )
 
     clean_records = daily_generation.generate_daily_records(
         state,
