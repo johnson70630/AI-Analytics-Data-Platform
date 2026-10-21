@@ -1,6 +1,7 @@
 import unittest
+import importlib
 import json
-import runpy
+import sys
 from collections import Counter
 from datetime import date
 from pathlib import Path
@@ -355,16 +356,40 @@ class DailyRunnerTests(unittest.TestCase):
             {"NULL_REQUIRED_FIELD": 1, "REPLAY_SAME_DAY": 2},
         )
 
-    def test_script_is_import_safe(self):
+    def test_direct_script_bootstrap_uses_bundle_root_without_file_global(self):
         script = (
             Path(__file__).resolve().parents[1]
             / "databricks"
             / "jobs"
             / "run_daily_generator.py"
         )
-        namespace = runpy.run_path(str(script), run_name="bundle_import_test")
+        bundle_root = Path(__file__).resolve().parents[1]
+        namespace = {
+            "__name__": "bundle_bootstrap_test",
+        }
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_daily_generator.py",
+                "--bundle-root",
+                str(bundle_root),
+                "--wrapper-argument",
+                "ignored",
+            ],
+        ):
+            exec(compile(script.read_text(), "<serverless-exec>", "exec"), namespace)
+
+        self.assertNotIn("__file__", namespace)
+        self.assertNotIn("__package__", namespace)
         self.assertIn("run_daily_generator", namespace)
         self.assertIn("main", namespace)
+
+    def test_normal_package_import_requires_no_bundle_root(self):
+        with patch.object(sys, "argv", ["pytest"]):
+            imported = importlib.reload(runner)
+        self.assertIs(imported, runner)
+        self.assertTrue(callable(imported.run_daily_generator))
 
     @patch("builtins.print")
     @patch.object(runner, "run_daily_generator")

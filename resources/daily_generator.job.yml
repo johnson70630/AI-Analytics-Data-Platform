@@ -7,6 +7,9 @@ resources:
         - task_key: run_daily_generator
           spark_python_task:
             python_file: ../databricks/jobs/run_daily_generator.py
+            parameters:
+              - --bundle-root
+              - ${workspace.file_path}
           environment_key: default
       environments:
         - environment_key: default

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from collections import Counter
@@ -10,11 +11,17 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-# A Python-script task starts with this file's directory on sys.path. Add the
-# synced bundle root, plus its databricks directory to avoid colliding with the
-# Databricks SDK's top-level package when this file is executed directly.
-if __package__ in (None, ""):
-    _BUNDLE_ROOT = Path(__file__).resolve().parents[2]
+def _parse_bundle_root(argv: list[str]) -> Path:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--bundle-root", required=True)
+    arguments, _ = parser.parse_known_args(argv)
+    return Path(arguments.bundle_root)
+
+
+# A serverless Python-script task can execute through a wrapper that does not
+# define __file__. Use the bundle root supplied by the job resource instead.
+if globals().get("__package__") in (None, ""):
+    _BUNDLE_ROOT = _parse_bundle_root(sys.argv[1:])
     for _import_path in (_BUNDLE_ROOT, _BUNDLE_ROOT / "databricks"):
         if str(_import_path) not in sys.path:
             sys.path.insert(0, str(_import_path))
