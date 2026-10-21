@@ -18,9 +18,35 @@ resources:
               - ${workspace.file_path}
           environment_key: default
 
+        - task_key: run_dbt_warehouse
+          depends_on:
+            - task_key: run_daily_generator
+          run_if: ALL_SUCCESS
+          dbt_task:
+            source: WORKSPACE
+            project_directory: ${workspace.file_path}/dbt
+            warehouse_id: 08401a2b34023edc
+            catalog: ai_analytics
+            schema: staging
+            commands:
+              - dbt run --select path:models/silver/staging
+              - dbt run --select current_user_state user_state_history dim_model dim_device dim_subscription_plan
+              - dbt snapshot --select dim_user_snapshot
+              - dbt run --select dim_user dim_user_sensitive dim_date
+              - dbt run --select fact_conversation fact_message fact_completion fact_model_inference fact_feedback fact_error fact_subscription fact_purchase fact_payment
+              - dbt run --select path:models/gold
+              - dbt run --select path:models/observability
+              - dbt test
+          environment_key: dbt
+
       environments:
         - environment_key: default
           spec:
             environment_version: "6"
             dependencies:
               - -r ${workspace.file_path}/requirements.txt
+        - environment_key: dbt
+          spec:
+            environment_version: "6"
+            dependencies:
+              - dbt-databricks==1.12.7
