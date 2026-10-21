@@ -1,12 +1,21 @@
-{{ config(
-    materialized='incremental',
-    incremental_strategy='merge',
-    unique_key='completion_id',
-    on_schema_change='sync_all_columns',
-    indexes=[
-        {'columns': ['completion_id'], 'unique': true, 'type': 'btree'}
-    ]
-) }}
+{% if target.type == 'databricks' %}
+    {{ config(
+        materialized='incremental',
+        incremental_strategy='merge',
+        unique_key='completion_id',
+        on_schema_change='sync_all_columns'
+    ) }}
+{% else %}
+    {{ config(
+        materialized='incremental',
+        incremental_strategy='merge',
+        unique_key='completion_id',
+        on_schema_change='sync_all_columns',
+        indexes=[
+            {'columns': ['completion_id'], 'unique': true, 'type': 'btree'}
+        ]
+    ) }}
+{% endif %}
 
 with completions as (
     select *
@@ -14,14 +23,14 @@ with completions as (
     {% if is_incremental() %}
     where requested_at >= (
         select coalesce(
-            max(requested_at) - interval '2 days',
+            {{ timestamp_subtract_days('max(requested_at)', 2) }},
             timestamp '1900-01-01'
         )
         from {{ this }}
     )
        or physical_partition_date >= (
            select coalesce(
-               max(source_partition_date) - 2,
+               {{ date_subtract_days('max(source_partition_date)', 2) }},
                date '1900-01-01'
            )
            from {{ this }}
@@ -45,9 +54,10 @@ select
     completions.completed_at,
     case
         when completions.is_timestamp_order_valid
-            then extract(epoch from (
-                completions.completed_at - completions.requested_at
-            ))
+            then {{ date_diff_seconds(
+                'completions.requested_at',
+                'completions.completed_at'
+            ) }}
     end as completion_duration_seconds,
     completions.ingested_at,
     completions.physical_partition_date as source_partition_date,

@@ -81,3 +81,19 @@
         )
     {%- endif -%}
 {%- endmacro %}
+
+{% macro timestamp_subtract_days(expression, days) -%}
+    {%- if target.type == 'databricks' -%}
+        {{ expression }} - interval {{ days }} days
+    {%- else -%}
+        {{ expression }} - interval '{{ days }} days'
+    {%- endif -%}
+{%- endmacro %}
+
+{% macro date_subtract_days(expression, days) -%}
+    {%- if target.type == 'databricks' -%}
+        date_sub({{ expression }}, {{ days }})
+    {%- else -%}
+        {{ expression }} - {{ days }}
+    {%- endif -%}
+{%- endmacro %}

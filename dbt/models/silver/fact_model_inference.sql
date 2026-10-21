@@ -1,13 +1,22 @@
-{{ config(
-    materialized='incremental',
-    incremental_strategy='merge',
-    unique_key='inference_id',
-    on_schema_change='sync_all_columns',
-    indexes=[
-        {'columns': ['inference_id'], 'unique': true, 'type': 'btree'},
-        {'columns': ['model_id', 'date_key'], 'type': 'btree'}
-    ]
-) }}
+{% if target.type == 'databricks' %}
+    {{ config(
+        materialized='incremental',
+        incremental_strategy='merge',
+        unique_key='inference_id',
+        on_schema_change='sync_all_columns'
+    ) }}
+{% else %}
+    {{ config(
+        materialized='incremental',
+        incremental_strategy='merge',
+        unique_key='inference_id',
+        on_schema_change='sync_all_columns',
+        indexes=[
+            {'columns': ['inference_id'], 'unique': true, 'type': 'btree'},
+            {'columns': ['model_id', 'date_key'], 'type': 'btree'}
+        ]
+    ) }}
+{% endif %}
 
 with inferences as (
     select *
@@ -15,14 +24,14 @@ with inferences as (
     {% if is_incremental() %}
     where request_at >= (
         select coalesce(
-            max(request_at) - interval '2 days',
+            {{ timestamp_subtract_days('max(request_at)', 2) }},
             timestamp '1900-01-01'
         )
         from {{ this }}
     )
        or physical_partition_date >= (
            select coalesce(
-               max(source_partition_date) - 2,
+               {{ date_subtract_days('max(source_partition_date)', 2) }},
                date '1900-01-01'
            )
            from {{ this }}
