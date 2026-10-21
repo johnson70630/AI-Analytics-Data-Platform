@@ -2,12 +2,26 @@
 
 from __future__ import annotations
 
+import json
+import sys
 from collections import Counter
 from collections.abc import Mapping
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
-from databricks.ingestion import bronze_writer, delta_state, state_updater
+# A Python-script task starts with this file's directory on sys.path. Add the
+# synced bundle root, plus its databricks directory to avoid colliding with the
+# Databricks SDK's top-level package when this file is executed directly.
+if __package__ in (None, ""):
+    _BUNDLE_ROOT = Path(__file__).resolve().parents[2]
+    for _import_path in (_BUNDLE_ROOT, _BUNDLE_ROOT / "databricks"):
+        if str(_import_path) not in sys.path:
+            sys.path.insert(0, str(_import_path))
+    from ingestion import bronze_writer, delta_state, state_updater
+else:
+    from databricks.ingestion import bronze_writer, delta_state, state_updater
+
 from src.data_generator import daily_generation
 
 
@@ -304,3 +318,27 @@ def run_daily_generator(
     )
     summary["completed"] = True
     return summary
+
+
+def _get_spark_session() -> Any:
+    from pyspark.sql import SparkSession
+
+    return SparkSession.getActiveSession() or SparkSession.builder.getOrCreate()
+
+
+def main() -> dict[str, Any]:
+    """Run the production next-day pipeline as a Databricks Python task."""
+    summary = run_daily_generator(
+        _get_spark_session(),
+        simulation_date=None,
+        seed=42,
+        source_schema="ai_analytics.source",
+        bronze_schema="ai_analytics.bronze",
+        dry_run=False,
+    )
+    print(json.dumps(summary, default=str, sort_keys=True, separators=(",", ":")))
+    return summary
+
+
+if __name__ == "__main__":
+    main()

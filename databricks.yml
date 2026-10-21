@@ -1,0 +1,10 @@
+bundle:
+  name: ai-analytics-data-platform
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true

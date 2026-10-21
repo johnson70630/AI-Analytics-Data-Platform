@@ -1,6 +1,9 @@
 import unittest
+import json
+import runpy
 from collections import Counter
 from datetime import date
+from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
 from databricks.ingestion import delta_state
@@ -351,6 +354,49 @@ class DailyRunnerTests(unittest.TestCase):
             summary["violation_counts_by_type"],
             {"NULL_REQUIRED_FIELD": 1, "REPLAY_SAME_DAY": 2},
         )
+
+    def test_script_is_import_safe(self):
+        script = (
+            Path(__file__).resolve().parents[1]
+            / "databricks"
+            / "jobs"
+            / "run_daily_generator.py"
+        )
+        namespace = runpy.run_path(str(script), run_name="bundle_import_test")
+        self.assertIn("run_daily_generator", namespace)
+        self.assertIn("main", namespace)
+
+    @patch("builtins.print")
+    @patch.object(runner, "run_daily_generator")
+    @patch.object(runner, "_get_spark_session")
+    def test_main_uses_production_defaults(
+        self,
+        get_spark_session,
+        run_generator,
+        print_output,
+    ):
+        spark = object()
+        expected = {
+            "simulation_date": date(2026, 8, 24),
+            "mode": "WRITE",
+            "completed": True,
+        }
+        get_spark_session.return_value = spark
+        run_generator.return_value = expected
+
+        result = runner.main()
+
+        self.assertIs(result, expected)
+        run_generator.assert_called_once_with(
+            spark,
+            simulation_date=None,
+            seed=42,
+            source_schema="ai_analytics.source",
+            bronze_schema="ai_analytics.bronze",
+            dry_run=False,
+        )
+        printed = print_output.call_args.args[0]
+        self.assertEqual(json.loads(printed)["simulation_date"], "2026-08-24")
 
 
 class DeltaStateSchemaTests(unittest.TestCase):
