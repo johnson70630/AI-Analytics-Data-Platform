@@ -27,24 +27,27 @@ freshness_metrics as (
 
 select
     'row_count' as model_name,
-    entity_name || '|' || cast(activity_date as varchar) as grain_key
+    entity_name || '|' || {{ staging_cast('activity_date', 'varchar') }}
+        as grain_key
 from volume_metrics
 where grain_count != 1
    or row_count < 0
-   or volume_status not in ('PASS', 'WARN', 'FAIL')
+   or rolling_7_day_average < 0
+   or volume_status not in ('PASS', 'WARN')
 
 union all
 
 select
     'quality_metrics',
-    entity_name || '|' || metric_name || '|' || cast(metric_date as varchar)
+    entity_name || '|' || metric_name || '|'
+        || {{ staging_cast('metric_date', 'varchar') }}
 from quality_metrics
 where grain_count != 1
    or numerator < 0
    or denominator < 0
    or numerator > denominator
    or metric_rate not between 0 and 1
-   or quality_status not in ('PASS', 'WARN', 'FAIL')
+   or quality_status not in ('PASS', 'WARN')
 
 union all
 
