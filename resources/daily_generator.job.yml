@@ -18,7 +18,7 @@ resources:
               - ${workspace.file_path}
           environment_key: default
 
-        - task_key: run_dbt_warehouse
+        - task_key: dbt_staging
           depends_on:
             - task_key: run_daily_generator
           run_if: ALL_SUCCESS
@@ -30,12 +30,103 @@ resources:
             schema: staging
             commands:
               - dbt run --select path:models/silver/staging
+          environment_key: dbt
+
+        - task_key: dbt_user_state
+          depends_on:
+            - task_key: dbt_staging
+          run_if: ALL_SUCCESS
+          dbt_task:
+            source: WORKSPACE
+            project_directory: ${workspace.file_path}/dbt
+            warehouse_id: 08401a2b34023edc
+            catalog: ai_analytics
+            schema: staging
+            commands:
               - dbt run --select current_user_state user_state_history dim_model dim_device dim_subscription_plan
+          environment_key: dbt
+
+        - task_key: dbt_snapshot
+          depends_on:
+            - task_key: dbt_user_state
+          run_if: ALL_SUCCESS
+          dbt_task:
+            source: WORKSPACE
+            project_directory: ${workspace.file_path}/dbt
+            warehouse_id: 08401a2b34023edc
+            catalog: ai_analytics
+            schema: staging
+            commands:
               - dbt snapshot --select dim_user_snapshot
+          environment_key: dbt
+
+        - task_key: dbt_dimensions
+          depends_on:
+            - task_key: dbt_snapshot
+          run_if: ALL_SUCCESS
+          dbt_task:
+            source: WORKSPACE
+            project_directory: ${workspace.file_path}/dbt
+            warehouse_id: 08401a2b34023edc
+            catalog: ai_analytics
+            schema: staging
+            commands:
               - dbt run --select dim_user dim_user_sensitive dim_date
+          environment_key: dbt
+
+        - task_key: dbt_silver_facts
+          depends_on:
+            - task_key: dbt_dimensions
+          run_if: ALL_SUCCESS
+          dbt_task:
+            source: WORKSPACE
+            project_directory: ${workspace.file_path}/dbt
+            warehouse_id: 08401a2b34023edc
+            catalog: ai_analytics
+            schema: staging
+            commands:
               - dbt run --select fact_conversation fact_message fact_completion fact_model_inference fact_feedback fact_error fact_subscription fact_purchase fact_payment
+          environment_key: dbt
+
+        - task_key: dbt_gold
+          depends_on:
+            - task_key: dbt_silver_facts
+          run_if: ALL_SUCCESS
+          dbt_task:
+            source: WORKSPACE
+            project_directory: ${workspace.file_path}/dbt
+            warehouse_id: 08401a2b34023edc
+            catalog: ai_analytics
+            schema: staging
+            commands:
               - dbt run --select path:models/gold
+          environment_key: dbt
+
+        - task_key: dbt_observability
+          depends_on:
+            - task_key: dbt_gold
+          run_if: ALL_SUCCESS
+          dbt_task:
+            source: WORKSPACE
+            project_directory: ${workspace.file_path}/dbt
+            warehouse_id: 08401a2b34023edc
+            catalog: ai_analytics
+            schema: staging
+            commands:
               - dbt run --select path:models/observability
+          environment_key: dbt
+
+        - task_key: dbt_tests
+          depends_on:
+            - task_key: dbt_observability
+          run_if: ALL_SUCCESS
+          dbt_task:
+            source: WORKSPACE
+            project_directory: ${workspace.file_path}/dbt
+            warehouse_id: 08401a2b34023edc
+            catalog: ai_analytics
+            schema: staging
+            commands:
               - dbt test
           environment_key: dbt
 
