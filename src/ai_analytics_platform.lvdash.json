@@ -1,0 +1,3764 @@
+{
+  "datasets": [
+    {
+      "config": {
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count",
+            "expr": "COUNT(*)",
+            "name": "count"
+          }
+        ],
+        "source": "ai_analytics.gold.gold_finance_metrics_daily",
+        "version": "1.1"
+      },
+      "displayName": "gold_finance_metrics_daily",
+      "name": "5cfde77b"
+    },
+    {
+      "config": {
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count",
+            "expr": "COUNT(*)",
+            "name": "count"
+          },
+          {
+            "comment": "Weighted success rate computed as sum of successful inferences divided by sum of all inferences",
+            "displayName": "Inference Success Rate",
+            "expr": "SUM(`successful_inference_count`) * 1.0 / NULLIF(SUM(`inference_count`), 0)",
+            "name": "inference_success_ratio"
+          },
+          {
+            "comment": "Inference-count-weighted average of P95 latency across models",
+            "displayName": "Weighted P95 Latency (ms)",
+            "expr": "SUM(`p95_latency_ms` * `inference_count`) / NULLIF(SUM(`inference_count`), 0)",
+            "name": "weighted_p95_latency_ms"
+          }
+        ],
+        "source": "ai_analytics.gold.gold_ml_metrics_daily",
+        "version": "1.1"
+      },
+      "displayName": "gold_ml_metrics_daily",
+      "name": "0afb5969"
+    },
+    {
+      "config": {
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count",
+            "expr": "COUNT(*)",
+            "name": "count"
+          }
+        ],
+        "source": "ai_analytics.gold.gold_product_metrics_daily",
+        "version": "1.1"
+      },
+      "displayName": "gold_product_metrics_daily",
+      "name": "a5bfae64"
+    },
+    {
+      "config": {
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count",
+            "expr": "COUNT(*)",
+            "name": "count"
+          }
+        ],
+        "source": "ai_analytics.gold.gold_user_activity_daily",
+        "version": "1.1"
+      },
+      "displayName": "gold_user_activity_daily",
+      "name": "42470cd3"
+    },
+    {
+      "config": {
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count",
+            "expr": "COUNT(*)",
+            "name": "count"
+          },
+          {
+            "comment": "Count of entities with freshness status WARN",
+            "displayName": "Freshness Warnings",
+            "expr": "COUNT_IF(`freshness_status` = 'WARN')",
+            "name": "freshness_warn_count"
+          },
+          {
+            "comment": "Count of entities with freshness status FAIL",
+            "displayName": "Freshness Failures",
+            "expr": "COUNT_IF(`freshness_status` = 'FAIL')",
+            "name": "freshness_fail_count"
+          }
+        ],
+        "source": "ai_analytics.observability.dq_entity_freshness",
+        "version": "1.1"
+      },
+      "displayName": "dq_entity_freshness",
+      "name": "1617b7fd"
+    },
+    {
+      "config": {
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count",
+            "expr": "COUNT(*)",
+            "name": "count"
+          },
+          {
+            "comment": "Count of reconciliation checks with status FAIL",
+            "displayName": "Reconciliation Failures",
+            "expr": "COUNT_IF(`status` = 'FAIL')",
+            "name": "recon_fail_count"
+          }
+        ],
+        "source": "ai_analytics.observability.dq_pipeline_reconciliation",
+        "version": "1.1"
+      },
+      "displayName": "dq_pipeline_reconciliation",
+      "name": "eb5af3a8"
+    },
+    {
+      "config": {
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count",
+            "expr": "COUNT(*)",
+            "name": "count"
+          },
+          {
+            "comment": "Count of entity-metric-day rows with quality status WARN",
+            "displayName": "Quality Warnings",
+            "expr": "COUNT_IF(`quality_status` = 'WARN')",
+            "name": "quality_warn_count"
+          }
+        ],
+        "source": "ai_analytics.observability.dq_quality_metrics_daily",
+        "version": "1.1"
+      },
+      "displayName": "dq_quality_metrics_daily",
+      "name": "b4e45212"
+    },
+    {
+      "config": {
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count",
+            "expr": "COUNT(*)",
+            "name": "count"
+          },
+          {
+            "comment": "Count of entity-day rows with volume status WARN",
+            "displayName": "Volume Warnings",
+            "expr": "COUNT_IF(`volume_status` = 'WARN')",
+            "name": "volume_warn_count"
+          }
+        ],
+        "source": "ai_analytics.observability.dq_row_count_daily",
+        "version": "1.1"
+      },
+      "displayName": "dq_row_count_daily",
+      "name": "4d8a5d8a"
+    },
+    {
+      "config": {
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count",
+            "expr": "COUNT(*)",
+            "name": "count"
+          },
+          {
+            "comment": "Weighted success rate computed as sum of successful inferences divided by sum of all inferences",
+            "displayName": "Inference Success Rate",
+            "expr": "SUM(`successful_inference_count`) * 1.0 / NULLIF(SUM(`inference_count`), 0)",
+            "name": "inference_success_ratio"
+          },
+          {
+            "comment": "Inference-count-weighted average of P95 latency across models",
+            "displayName": "Weighted P95 Latency (ms)",
+            "expr": "SUM(`p95_latency_ms` * `inference_count`) / NULLIF(SUM(`inference_count`), 0)",
+            "name": "weighted_p95_latency_ms"
+          }
+        ],
+        "source": "SELECT * FROM ai_analytics.gold.gold_ml_metrics_daily\nWHERE full_date = (SELECT MAX(full_date) FROM ai_analytics.gold.gold_ml_metrics_daily)\n",
+        "version": "1.1"
+      },
+      "displayName": "gold_ml_metrics_latest_date",
+      "name": "ml_latest_date"
+    },
+    {
+      "config": {
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count",
+            "expr": "COUNT(*)",
+            "name": "count"
+          }
+        ],
+        "source": "SELECT * FROM ai_analytics.gold.gold_finance_metrics_daily\nWHERE full_date = (SELECT MAX(full_date) FROM ai_analytics.gold.gold_finance_metrics_daily)\n",
+        "version": "1.1"
+      },
+      "displayName": "gold_finance_metrics_latest_date",
+      "name": "fin_latest_date"
+    },
+    {
+      "catalog": "ai_analytics",
+      "displayName": "Top 10 Revenue Dates",
+      "name": "fin_top_revenue_dates",
+      "queryLines": [
+        "SELECT\n",
+        "  full_date,\n",
+        "  completed_purchase_count,\n",
+        "  renewal_purchase_count,\n",
+        "  new_subscription_purchase_count,\n",
+        "  gross_collected_amount,\n",
+        "  refund_amount,\n",
+        "  net_revenue\n",
+        "FROM\n",
+        "  gold_finance_metrics_daily\n",
+        "ORDER BY\n",
+        "  gross_collected_amount DESC\n",
+        "LIMIT 10"
+      ],
+      "schema": "gold"
+    }
+  ],
+  "pages": [
+    {
+      "displayName": "Product",
+      "layout": [
+        {
+          "position": {
+            "height": 2,
+            "width": 3,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_active_users",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "a5bfae64",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`active_users`)",
+                      "name": "sum(active_users)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`full_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "period": {
+                  "fieldName": "full_date"
+                },
+                "value": {
+                  "fieldName": "sum(active_users)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Active Users"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 3,
+            "x": 3,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_messages",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "a5bfae64",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`message_count`)",
+                      "name": "sum(message_count)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`full_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "period": {
+                  "fieldName": "full_date"
+                },
+                "value": {
+                  "fieldName": "sum(message_count)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Messages"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 3,
+            "x": 6,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_completions",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "a5bfae64",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`completion_count`)",
+                      "name": "sum(completion_count)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`full_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "period": {
+                  "fieldName": "full_date"
+                },
+                "value": {
+                  "fieldName": "sum(completion_count)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Completions"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 3,
+            "x": 9,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_completion_success_rate",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "a5bfae64",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "AVG(`completion_success_rate`)",
+                      "name": "avg(completion_success_rate)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`full_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "period": {
+                  "fieldName": "full_date"
+                },
+                "value": {
+                  "fieldName": "avg(completion_success_rate)",
+                  "format": {
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-percent"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Completion Success Rate"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 8,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "name": "daily_activity_trend",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "a5bfae64",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`message_count`)",
+                      "name": "sum(message_count)"
+                    },
+                    {
+                      "expression": "SUM(`conversation_count`)",
+                      "name": "sum(conversation_count)"
+                    },
+                    {
+                      "expression": "SUM(`completion_count`)",
+                      "name": "sum(completion_count)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "full_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Messages",
+                      "fieldName": "sum(message_count)"
+                    },
+                    {
+                      "displayName": "Conversations",
+                      "fieldName": "sum(conversation_count)"
+                    },
+                    {
+                      "displayName": "Completions",
+                      "fieldName": "sum(completion_count)"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {},
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 4,
+            "x": 8,
+            "y": 2
+          },
+          "widget": {
+            "name": "completion_success_rate_trend",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "a5bfae64",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "AVG(`completion_success_rate`)",
+                      "name": "avg(completion_success_rate)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "full_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(completion_success_rate)",
+                  "format": {
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-percent"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Completion Success Rate Trend"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 12,
+            "x": 0,
+            "y": 7
+          },
+          "widget": {
+            "name": "feedback_rate_trends",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "a5bfae64",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "AVG(`feedback_rate`)",
+                      "name": "avg(feedback_rate)"
+                    },
+                    {
+                      "expression": "AVG(`positive_feedback_rate`)",
+                      "name": "avg(positive_feedback_rate)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "full_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Feedback Rate",
+                      "fieldName": "avg(feedback_rate)"
+                    },
+                    {
+                      "displayName": "Positive Feedback Rate",
+                      "fieldName": "avg(positive_feedback_rate)"
+                    }
+                  ],
+                  "format": {
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-percent"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {},
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        }
+      ],
+      "layoutVersion": "GRID_V1",
+      "name": "1fdf2c69",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "AI / Model Performance",
+      "layout": [
+        {
+          "position": {
+            "height": 2,
+            "width": 4,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "name": "filter_date",
+            "queries": [
+              {
+                "name": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb0fb091edf8c6587f646972313_full_date",
+                "query": {
+                  "datasetName": "0afb5969",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "full_date_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "full_date",
+                    "queryName": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb0fb091edf8c6587f646972313_full_date"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Date Range"
+              },
+              "version": 2,
+              "widgetType": "filter-date-range-picker"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 4,
+            "x": 4,
+            "y": 2
+          },
+          "widget": {
+            "name": "filter_provider",
+            "queries": [
+              {
+                "name": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb0fb091edf8c6587f646972313_provider",
+                "query": {
+                  "datasetName": "0afb5969",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`provider`",
+                      "name": "provider"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "provider_associativity"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb4c9c712f793570dbc25e4bd74_provider",
+                "query": {
+                  "datasetName": "ml_latest_date",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`provider`",
+                      "name": "provider"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "provider_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "provider",
+                    "queryName": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb0fb091edf8c6587f646972313_provider"
+                  },
+                  {
+                    "fieldName": "provider",
+                    "queryName": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb4c9c712f793570dbc25e4bd74_provider"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Provider"
+                }
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 3,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_total_inferences",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0afb5969",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`inference_count`)",
+                      "name": "sum(inference_count)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`full_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "period": {
+                  "fieldName": "full_date"
+                },
+                "value": {
+                  "fieldName": "sum(inference_count)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Total Inferences"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 4,
+            "x": 8,
+            "y": 2
+          },
+          "widget": {
+            "name": "filter_model_name",
+            "queries": [
+              {
+                "name": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb0fb091edf8c6587f646972313_model_name",
+                "query": {
+                  "datasetName": "0afb5969",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`model_name`",
+                      "name": "model_name"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "model_name_associativity"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb4c9c712f793570dbc25e4bd74_model_name",
+                "query": {
+                  "datasetName": "ml_latest_date",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`model_name`",
+                      "name": "model_name"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "model_name_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "model_name",
+                    "queryName": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb0fb091edf8c6587f646972313_model_name"
+                  },
+                  {
+                    "fieldName": "model_name",
+                    "queryName": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb4c9c712f793570dbc25e4bd74_model_name"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Model Name"
+                }
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 3,
+            "x": 3,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_success_rate",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0afb5969",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "MEASURE(`inference_success_ratio`)",
+                      "name": "measure(inference_success_ratio)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`full_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "period": {
+                  "fieldName": "full_date"
+                },
+                "value": {
+                  "fieldName": "measure(inference_success_ratio)",
+                  "format": {
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-percent"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Inference Success Rate"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 3,
+            "x": 6,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_p95_latency",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0afb5969",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "MEASURE(`weighted_p95_latency_ms`)",
+                      "name": "measure(weighted_p95_latency_ms)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`full_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "period": {
+                  "fieldName": "full_date"
+                },
+                "value": {
+                  "fieldName": "measure(weighted_p95_latency_ms)",
+                  "format": {
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "places": 0,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  },
+                  "formatTemplate": "{{ @formatted }} ms"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "P95 Latency"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 3,
+            "x": 9,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_total_tokens",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0afb5969",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`total_tokens`)",
+                      "name": "sum(total_tokens)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`full_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "period": {
+                  "fieldName": "full_date"
+                },
+                "value": {
+                  "fieldName": "sum(total_tokens)",
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Total Tokens"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 8,
+            "x": 0,
+            "y": 4
+          },
+          "widget": {
+            "name": "daily_inference_volume",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0afb5969",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`inference_count`)",
+                      "name": "sum(inference_count)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "full_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(inference_count)",
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Daily Inference Volume"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 4,
+            "x": 8,
+            "y": 4
+          },
+          "widget": {
+            "filterSources": {
+              "mode": "EXCLUDE",
+              "page": {
+                "names": [
+                  "filter_date"
+                ]
+              }
+            },
+            "name": "model_inference_volume",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ml_latest_date",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`model_version`",
+                      "name": "model_version"
+                    },
+                    {
+                      "expression": "SUM(`inference_count`)",
+                      "name": "sum(inference_count)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "SUM(`inference_count`)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "color": {
+                  "fieldName": "model_version",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "fieldName": "model_version",
+                  "scale": {
+                    "sort": {
+                      "by": "measure-reversed",
+                      "measure": {
+                        "fieldName": "sum(inference_count)"
+                      }
+                    },
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(inference_count)",
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Model Inference Volume (Latest Date)"
+                }
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 4,
+            "x": 0,
+            "y": 9
+          },
+          "widget": {
+            "filterSources": {
+              "mode": "EXCLUDE",
+              "page": {
+                "names": [
+                  "filter_date"
+                ]
+              }
+            },
+            "name": "success_rate_by_model",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ml_latest_date",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`model_name`",
+                      "name": "model_name"
+                    },
+                    {
+                      "expression": "AVG(`inference_success_rate`)",
+                      "name": "avg(inference_success_rate)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "AVG(`inference_success_rate`)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "model_name",
+                  "scale": {
+                    "sort": {
+                      "by": "measure-reversed",
+                      "measure": {
+                        "fieldName": "avg(inference_success_rate)"
+                      }
+                    },
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(inference_success_rate)",
+                  "format": {
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-percent"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Inference Success Rate by Model"
+                }
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 8,
+            "x": 4,
+            "y": 9
+          },
+          "widget": {
+            "name": "latency_trend",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0afb5969",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "AVG(`p50_latency_ms`)",
+                      "name": "avg(p50_latency_ms)"
+                    },
+                    {
+                      "expression": "AVG(`p95_latency_ms`)",
+                      "name": "avg(p95_latency_ms)"
+                    },
+                    {
+                      "expression": "AVG(`p99_latency_ms`)",
+                      "name": "avg(p99_latency_ms)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "full_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "P50 Latency",
+                      "fieldName": "avg(p50_latency_ms)"
+                    },
+                    {
+                      "displayName": "P95 Latency",
+                      "fieldName": "avg(p95_latency_ms)"
+                    },
+                    {
+                      "displayName": "P99 Latency",
+                      "fieldName": "avg(p99_latency_ms)"
+                    }
+                  ],
+                  "format": {
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "places": 0,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  },
+                  "formatTemplate": "{{ @formatted }} ms",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Latency Trend"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 7,
+            "x": 0,
+            "y": 14
+          },
+          "widget": {
+            "name": "token_usage_trend",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0afb5969",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`total_input_tokens`)",
+                      "name": "sum(total_input_tokens)"
+                    },
+                    {
+                      "expression": "SUM(`total_output_tokens`)",
+                      "name": "sum(total_output_tokens)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "full_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Input Tokens",
+                      "fieldName": "sum(total_input_tokens)"
+                    },
+                    {
+                      "displayName": "Output Tokens",
+                      "fieldName": "sum(total_output_tokens)"
+                    }
+                  ],
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Token Usage Trend"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 5,
+            "x": 7,
+            "y": 14
+          },
+          "widget": {
+            "filterSources": {
+              "mode": "EXCLUDE",
+              "page": {
+                "names": [
+                  "filter_date"
+                ]
+              }
+            },
+            "name": "model_performance_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ml_latest_date",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`model_name`",
+                      "name": "model_name"
+                    },
+                    {
+                      "expression": "`model_version`",
+                      "name": "model_version"
+                    },
+                    {
+                      "expression": "`provider`",
+                      "name": "provider"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Model Name",
+                    "fieldName": "model_name"
+                  },
+                  {
+                    "displayName": "Version",
+                    "fieldName": "model_version"
+                  },
+                  {
+                    "displayName": "Provider",
+                    "fieldName": "provider"
+                  }
+                ],
+                "rowOrder": [
+                  {
+                    "by": "column-reversed",
+                    "field": {
+                      "index": 3
+                    }
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Latest Model Performance"
+                }
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        }
+      ],
+      "layoutVersion": "GRID_V1",
+      "name": "358e1f3d",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "Finance",
+      "layout": [
+        {
+          "position": {
+            "height": 2,
+            "width": 3,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_net_revenue",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "fin_latest_date",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`net_revenue`)",
+                      "name": "sum(net_revenue)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`full_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "period": {
+                  "fieldName": "full_date"
+                },
+                "value": {
+                  "fieldName": "sum(net_revenue)",
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  },
+                  "formatTemplate": "${{ @formatted }}"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Net Revenue"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 3,
+            "x": 3,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_gross_collected",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "fin_latest_date",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`gross_collected_amount`)",
+                      "name": "sum(gross_collected_amount)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`full_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "period": {
+                  "fieldName": "full_date"
+                },
+                "value": {
+                  "fieldName": "sum(gross_collected_amount)",
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  },
+                  "formatTemplate": "${{ @formatted }}"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Gross Collected"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 3,
+            "x": 6,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_payment_success_rate",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "fin_latest_date",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "AVG(`payment_success_rate`)",
+                      "name": "avg(payment_success_rate)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`full_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "period": {
+                  "fieldName": "full_date"
+                },
+                "value": {
+                  "fieldName": "avg(payment_success_rate)",
+                  "format": {
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-percent"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Payment Success Rate"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 3,
+            "x": 9,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_completed_purchases",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "fin_latest_date",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`completed_purchase_count`)",
+                      "name": "sum(completed_purchase_count)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`full_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "period": {
+                  "fieldName": "full_date"
+                },
+                "value": {
+                  "fieldName": "sum(completed_purchase_count)",
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Completed Purchases"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 4,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "name": "filter_date_range",
+            "queries": [
+              {
+                "name": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb0faf0179ea17fb5443d41d429_full_date",
+                "query": {
+                  "datasetName": "5cfde77b",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "full_date_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "full_date",
+                    "queryName": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb0faf0179ea17fb5443d41d429_full_date"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Date Range"
+              },
+              "version": 2,
+              "widgetType": "filter-date-range-picker"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 8,
+            "x": 0,
+            "y": 4
+          },
+          "widget": {
+            "name": "revenue_trend",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "5cfde77b",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`gross_collected_amount`)",
+                      "name": "sum(gross_collected_amount)"
+                    },
+                    {
+                      "expression": "SUM(`net_revenue`)",
+                      "name": "sum(net_revenue)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "full_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Gross Collected",
+                      "fieldName": "sum(gross_collected_amount)"
+                    },
+                    {
+                      "displayName": "Net Revenue",
+                      "fieldName": "sum(net_revenue)"
+                    }
+                  ],
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  },
+                  "formatTemplate": "${{ @formatted }}",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Revenue Trend"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 4,
+            "x": 8,
+            "y": 4
+          },
+          "widget": {
+            "name": "purchase_type_mix",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "fin_latest_date",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`new_subscription_purchase_count`)",
+                      "name": "sum(new_subscription_purchase_count)"
+                    },
+                    {
+                      "expression": "SUM(`renewal_purchase_count`)",
+                      "name": "sum(renewal_purchase_count)"
+                    },
+                    {
+                      "expression": "SUM(`upgrade_purchase_count`)",
+                      "name": "sum(upgrade_purchase_count)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "full_date",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "New Subscription",
+                      "fieldName": "sum(new_subscription_purchase_count)"
+                    },
+                    {
+                      "displayName": "Renewal",
+                      "fieldName": "sum(renewal_purchase_count)"
+                    },
+                    {
+                      "displayName": "Upgrade",
+                      "fieldName": "sum(upgrade_purchase_count)"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Purchase Type Mix (Latest Date)"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 6,
+            "x": 0,
+            "y": 9
+          },
+          "widget": {
+            "name": "purchase_activity",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "5cfde77b",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`completed_purchase_count`)",
+                      "name": "sum(completed_purchase_count)"
+                    },
+                    {
+                      "expression": "SUM(`failed_purchase_count`)",
+                      "name": "sum(failed_purchase_count)"
+                    },
+                    {
+                      "expression": "SUM(`refunded_purchase_count`)",
+                      "name": "sum(refunded_purchase_count)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "full_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Completed",
+                      "fieldName": "sum(completed_purchase_count)"
+                    },
+                    {
+                      "displayName": "Failed",
+                      "fieldName": "sum(failed_purchase_count)"
+                    },
+                    {
+                      "displayName": "Refunded",
+                      "fieldName": "sum(refunded_purchase_count)"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Purchase Activity"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 6,
+            "x": 6,
+            "y": 9
+          },
+          "widget": {
+            "name": "subscription_activity",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "5cfde77b",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`subscription_start_count`)",
+                      "name": "sum(subscription_start_count)"
+                    },
+                    {
+                      "expression": "SUM(`subscription_end_count`)",
+                      "name": "sum(subscription_end_count)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "full_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Starts",
+                      "fieldName": "sum(subscription_start_count)"
+                    },
+                    {
+                      "displayName": "Ends",
+                      "fieldName": "sum(subscription_end_count)"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Subscription Activity"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 4,
+            "x": 0,
+            "y": 14
+          },
+          "widget": {
+            "name": "payment_success_rate_trend",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "5cfde77b",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "AVG(`payment_success_rate`)",
+                      "name": "avg(payment_success_rate)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "full_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(payment_success_rate)",
+                  "format": {
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-percent"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Payment Success Rate Trend"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 4,
+            "x": 4,
+            "y": 14
+          },
+          "widget": {
+            "name": "payment_retry_trend",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "5cfde77b",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "SUM(`purchases_with_multiple_payment_attempts`)",
+                      "name": "sum(purchases_with_multiple_payment_attempts)"
+                    },
+                    {
+                      "expression": "SUM(`retry_attempt_count`)",
+                      "name": "sum(retry_attempt_count)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "full_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Purchases with Multiple Attempts",
+                      "fieldName": "sum(purchases_with_multiple_payment_attempts)"
+                    },
+                    {
+                      "displayName": "Retry Attempts",
+                      "fieldName": "sum(retry_attempt_count)"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Payment Retry Trend"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 4,
+            "x": 8,
+            "y": 14
+          },
+          "widget": {
+            "name": "retry_purchase_rate_trend",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "5cfde77b",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "AVG(`retry_purchase_rate`)",
+                      "name": "avg(retry_purchase_rate)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "full_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(retry_purchase_rate)",
+                  "format": {
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-percent"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Retry Purchase Rate Trend"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 12,
+            "x": 0,
+            "y": 19
+          },
+          "widget": {
+            "name": "top_revenue_dates_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "fin_top_revenue_dates",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`full_date`",
+                      "name": "full_date"
+                    },
+                    {
+                      "expression": "`completed_purchase_count`",
+                      "name": "completed_purchase_count"
+                    },
+                    {
+                      "expression": "`renewal_purchase_count`",
+                      "name": "renewal_purchase_count"
+                    },
+                    {
+                      "expression": "`new_subscription_purchase_count`",
+                      "name": "new_subscription_purchase_count"
+                    },
+                    {
+                      "expression": "`gross_collected_amount`",
+                      "name": "gross_collected_amount"
+                    },
+                    {
+                      "expression": "`refund_amount`",
+                      "name": "refund_amount"
+                    },
+                    {
+                      "expression": "`net_revenue`",
+                      "name": "net_revenue"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Date",
+                    "fieldName": "full_date"
+                  },
+                  {
+                    "displayName": "Completed Purchases",
+                    "fieldName": "completed_purchase_count"
+                  },
+                  {
+                    "displayName": "Renewals",
+                    "fieldName": "renewal_purchase_count"
+                  },
+                  {
+                    "displayName": "New Subscriptions",
+                    "fieldName": "new_subscription_purchase_count"
+                  },
+                  {
+                    "displayName": "Gross Collected",
+                    "fieldName": "gross_collected_amount"
+                  },
+                  {
+                    "displayName": "Refunds",
+                    "fieldName": "refund_amount"
+                  },
+                  {
+                    "displayName": "Net Revenue",
+                    "fieldName": "net_revenue"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Top 10 Revenue Dates"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        }
+      ],
+      "layoutVersion": "GRID_V1",
+      "name": "76798fdd",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "Pipeline Health / Data Quality",
+      "layout": [
+        {
+          "position": {
+            "height": 2,
+            "width": 4,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "name": "filter_entity_name",
+            "queries": [
+              {
+                "name": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb103de1426afd124aea947dc05_entity_name",
+                "query": {
+                  "datasetName": "1617b7fd",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`entity_name`",
+                      "name": "entity_name"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "entity_name_associativity"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb104341a118da41405700726cd_entity_name",
+                "query": {
+                  "datasetName": "4d8a5d8a",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`entity_name`",
+                      "name": "entity_name"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "entity_name_associativity"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb1041d19c5be77b78cdcc050be_entity_name",
+                "query": {
+                  "datasetName": "b4e45212",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`entity_name`",
+                      "name": "entity_name"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "entity_name_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "entity_name",
+                    "queryName": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb103de1426afd124aea947dc05_entity_name"
+                  },
+                  {
+                    "fieldName": "entity_name",
+                    "queryName": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb104341a118da41405700726cd_entity_name"
+                  },
+                  {
+                    "fieldName": "entity_name",
+                    "queryName": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb1041d19c5be77b78cdcc050be_entity_name"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Entity"
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 4,
+            "x": 4,
+            "y": 2
+          },
+          "widget": {
+            "name": "filter_metric_name",
+            "queries": [
+              {
+                "name": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb1041d19c5be77b78cdcc050be_metric_name",
+                "query": {
+                  "datasetName": "b4e45212",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`metric_name`",
+                      "name": "metric_name"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "metric_name_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "metric_name",
+                    "queryName": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb1041d19c5be77b78cdcc050be_metric_name"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Metric"
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 4,
+            "x": 8,
+            "y": 2
+          },
+          "widget": {
+            "name": "filter_date_range",
+            "queries": [
+              {
+                "name": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb104341a118da41405700726cd_activity_date",
+                "query": {
+                  "datasetName": "4d8a5d8a",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`activity_date`",
+                      "name": "activity_date"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "activity_date_associativity"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb1041d19c5be77b78cdcc050be_metric_date",
+                "query": {
+                  "datasetName": "b4e45212",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`metric_date`",
+                      "name": "metric_date"
+                    },
+                    {
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)",
+                      "name": "metric_date_associativity"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "activity_date",
+                    "queryName": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb104341a118da41405700726cd_activity_date"
+                  },
+                  {
+                    "fieldName": "metric_date",
+                    "queryName": "dashboards/01f1cdb0e433193f8326673c4f4b0a13/datasets/01f1cdb1041d19c5be77b78cdcc050be_metric_date"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Date Range"
+              },
+              "version": 2,
+              "widgetType": "filter-date-range-picker"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 6,
+            "x": 0,
+            "y": 4
+          },
+          "widget": {
+            "name": "entity_freshness_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1617b7fd",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`entity_name`",
+                      "name": "entity_name"
+                    },
+                    {
+                      "expression": "`latest_event_at`",
+                      "name": "latest_event_at"
+                    },
+                    {
+                      "expression": "`latest_partition_date`",
+                      "name": "latest_partition_date"
+                    },
+                    {
+                      "expression": "`freshness_delay_hours`",
+                      "name": "freshness_delay_hours"
+                    },
+                    {
+                      "expression": "`freshness_status`",
+                      "name": "freshness_status"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`freshness_delay_hours`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Entity",
+                    "fieldName": "entity_name"
+                  },
+                  {
+                    "displayName": "Latest Event",
+                    "fieldName": "latest_event_at"
+                  },
+                  {
+                    "displayName": "Partition Date",
+                    "fieldName": "latest_partition_date"
+                  },
+                  {
+                    "displayName": "Delay (hrs)",
+                    "fieldName": "freshness_delay_hours"
+                  },
+                  {
+                    "displayName": "Status",
+                    "fieldName": "freshness_status"
+                  }
+                ],
+                "rowOrder": [
+                  {
+                    "by": "column-reversed",
+                    "field": {
+                      "index": 3
+                    }
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Entity Freshness Status"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 6,
+            "x": 6,
+            "y": 4
+          },
+          "widget": {
+            "name": "freshness_delay_bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1617b7fd",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`entity_name`",
+                      "name": "entity_name"
+                    },
+                    {
+                      "expression": "AVG(`freshness_delay_hours`)",
+                      "name": "avg(freshness_delay_hours)"
+                    },
+                    {
+                      "expression": "AVG(`freshness_warning_threshold_hours`)",
+                      "name": "avg(freshness_warning_threshold_hours)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "AVG(`freshness_delay_hours`)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "entity_name",
+                  "scale": {
+                    "sort": {
+                      "by": "measure-reversed",
+                      "measure": {
+                        "fieldName": "avg(freshness_delay_hours)"
+                      }
+                    },
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Delay (hrs)",
+                      "fieldName": "avg(freshness_delay_hours)"
+                    },
+                    {
+                      "displayName": "Threshold (hrs)",
+                      "fieldName": "avg(freshness_warning_threshold_hours)"
+                    }
+                  ],
+                  "format": {
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Freshness Delay by Entity"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 8,
+            "x": 0,
+            "y": 9
+          },
+          "widget": {
+            "name": "daily_volume_line",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "4d8a5d8a",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`entity_name`",
+                      "name": "entity_name"
+                    },
+                    {
+                      "expression": "`activity_date`",
+                      "name": "activity_date"
+                    },
+                    {
+                      "expression": "SUM(`row_count`)",
+                      "name": "sum(row_count)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "color": {
+                  "fieldName": "entity_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "fieldName": "activity_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(row_count)",
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Daily Volume by Entity"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 4,
+            "x": 8,
+            "y": 9
+          },
+          "widget": {
+            "name": "volume_anomalies_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "4d8a5d8a",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`entity_name`",
+                      "name": "entity_name"
+                    },
+                    {
+                      "expression": "`activity_date`",
+                      "name": "activity_date"
+                    },
+                    {
+                      "expression": "`row_count`",
+                      "name": "row_count"
+                    },
+                    {
+                      "expression": "`previous_day_row_count`",
+                      "name": "previous_day_row_count"
+                    },
+                    {
+                      "expression": "`rolling_7_day_average`",
+                      "name": "rolling_7_day_average"
+                    },
+                    {
+                      "expression": "`rolling_7_day_change_pct`",
+                      "name": "rolling_7_day_change_pct"
+                    },
+                    {
+                      "expression": "`volume_status`",
+                      "name": "volume_status"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`volume_status` IN ('WARN')"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`rolling_7_day_change_pct`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Entity",
+                    "fieldName": "entity_name"
+                  },
+                  {
+                    "displayName": "Date",
+                    "fieldName": "activity_date"
+                  },
+                  {
+                    "displayName": "Row Count",
+                    "fieldName": "row_count"
+                  },
+                  {
+                    "displayName": "Previous Day",
+                    "fieldName": "previous_day_row_count"
+                  },
+                  {
+                    "displayName": "7-Day Avg",
+                    "fieldName": "rolling_7_day_average"
+                  },
+                  {
+                    "displayName": "7-Day Change %",
+                    "fieldName": "rolling_7_day_change_pct"
+                  },
+                  {
+                    "displayName": "Status",
+                    "fieldName": "volume_status"
+                  }
+                ],
+                "rowOrder": [
+                  {
+                    "by": "column-reversed",
+                    "field": {
+                      "index": 5
+                    }
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Volume Anomalies"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 8,
+            "x": 0,
+            "y": 14
+          },
+          "widget": {
+            "name": "quality_rate_trend_line",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b4e45212",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`metric_name`",
+                      "name": "metric_name"
+                    },
+                    {
+                      "expression": "`metric_date`",
+                      "name": "metric_date"
+                    },
+                    {
+                      "expression": "AVG(`metric_rate`)",
+                      "name": "avg(metric_rate)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "color": {
+                  "fieldName": "metric_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "fieldName": "metric_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(metric_rate)",
+                  "format": {
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-percent"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Data Quality Rate Trend"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 4,
+            "x": 8,
+            "y": 14
+          },
+          "widget": {
+            "name": "quality_warnings_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b4e45212",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`entity_name`",
+                      "name": "entity_name"
+                    },
+                    {
+                      "expression": "`metric_name`",
+                      "name": "metric_name"
+                    },
+                    {
+                      "expression": "`metric_date`",
+                      "name": "metric_date"
+                    },
+                    {
+                      "expression": "`metric_rate`",
+                      "name": "metric_rate"
+                    },
+                    {
+                      "expression": "`rolling_7_day_rate`",
+                      "name": "rolling_7_day_rate"
+                    },
+                    {
+                      "expression": "`quality_warning_delta`",
+                      "name": "quality_warning_delta"
+                    },
+                    {
+                      "expression": "`quality_status`",
+                      "name": "quality_status"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`quality_status` IN ('WARN')"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`metric_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Entity",
+                    "fieldName": "entity_name"
+                  },
+                  {
+                    "displayName": "Metric",
+                    "fieldName": "metric_name"
+                  },
+                  {
+                    "displayName": "Date",
+                    "fieldName": "metric_date"
+                  },
+                  {
+                    "displayName": "Rate",
+                    "fieldName": "metric_rate"
+                  },
+                  {
+                    "displayName": "7-Day Rate",
+                    "fieldName": "rolling_7_day_rate"
+                  },
+                  {
+                    "displayName": "Warning Delta",
+                    "fieldName": "quality_warning_delta"
+                  },
+                  {
+                    "displayName": "Status",
+                    "fieldName": "quality_status"
+                  }
+                ],
+                "rowOrder": [
+                  {
+                    "by": "column-reversed",
+                    "field": {
+                      "index": 2
+                    }
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Data Quality Warnings"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 8,
+            "x": 0,
+            "y": 19
+          },
+          "widget": {
+            "name": "reconciliation_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "eb5af3a8",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`reconciliation_name`",
+                      "name": "reconciliation_name"
+                    },
+                    {
+                      "expression": "`source_layer`",
+                      "name": "source_layer"
+                    },
+                    {
+                      "expression": "`target_layer`",
+                      "name": "target_layer"
+                    },
+                    {
+                      "expression": "`source_count`",
+                      "name": "source_count"
+                    },
+                    {
+                      "expression": "`target_count`",
+                      "name": "target_count"
+                    },
+                    {
+                      "expression": "`difference`",
+                      "name": "difference"
+                    },
+                    {
+                      "expression": "`difference_pct`",
+                      "name": "difference_pct"
+                    },
+                    {
+                      "expression": "`status`",
+                      "name": "status"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "ASC",
+                      "expression": "`status`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Reconciliation",
+                    "fieldName": "reconciliation_name"
+                  },
+                  {
+                    "displayName": "Source",
+                    "fieldName": "source_layer"
+                  },
+                  {
+                    "displayName": "Target",
+                    "fieldName": "target_layer"
+                  },
+                  {
+                    "displayName": "Source Count",
+                    "fieldName": "source_count"
+                  },
+                  {
+                    "displayName": "Target Count",
+                    "fieldName": "target_count"
+                  },
+                  {
+                    "displayName": "Difference",
+                    "fieldName": "difference"
+                  },
+                  {
+                    "displayName": "Difference %",
+                    "fieldName": "difference_pct"
+                  },
+                  {
+                    "displayName": "Status",
+                    "fieldName": "status"
+                  }
+                ],
+                "rowOrder": [
+                  {
+                    "by": "column",
+                    "field": {
+                      "index": 7
+                    }
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Pipeline Reconciliation"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 3,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_freshness_warnings",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1617b7fd",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "MEASURE(`freshness_warn_count`)",
+                      "name": "measure(freshness_warn_count)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "measure(freshness_warn_count)",
+                  "format": {
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "places": 0,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Freshness Warnings"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 3,
+            "x": 3,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_freshness_failures",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1617b7fd",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "MEASURE(`freshness_fail_count`)",
+                      "name": "measure(freshness_fail_count)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "measure(freshness_fail_count)",
+                  "format": {
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "places": 0,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Freshness Failures"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 2,
+            "x": 6,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_volume_warnings",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "4d8a5d8a",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`activity_date`",
+                      "name": "activity_date"
+                    },
+                    {
+                      "expression": "MEASURE(`volume_warn_count`)",
+                      "name": "measure(volume_warn_count)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`activity_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "period": {
+                  "fieldName": "activity_date"
+                },
+                "value": {
+                  "fieldName": "measure(volume_warn_count)",
+                  "format": {
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "places": 0,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Volume Warnings"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 2,
+            "x": 8,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_quality_warnings",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b4e45212",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`metric_date`",
+                      "name": "metric_date"
+                    },
+                    {
+                      "expression": "MEASURE(`quality_warn_count`)",
+                      "name": "measure(quality_warn_count)"
+                    }
+                  ],
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`metric_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "period": {
+                  "fieldName": "metric_date"
+                },
+                "value": {
+                  "fieldName": "measure(quality_warn_count)",
+                  "format": {
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "places": 0,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Quality Warnings"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 2,
+            "width": 2,
+            "x": 10,
+            "y": 0
+          },
+          "widget": {
+            "name": "kpi_recon_failures",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "eb5af3a8",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "MEASURE(`recon_fail_count`)",
+                      "name": "measure(recon_fail_count)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "measure(recon_fail_count)",
+                  "format": {
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "places": 0,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Reconciliation Failures"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 4,
+            "x": 8,
+            "y": 19
+          },
+          "widget": {
+            "name": "recon_status_summary",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "eb5af3a8",
+                  "disaggregated": false,
+                  "fields": [
+                    {
+                      "expression": "`status`",
+                      "name": "status"
+                    },
+                    {
+                      "expression": "MEASURE(`count`)",
+                      "name": "measure(count)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "color": {
+                  "fieldName": "status",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "fieldName": "status",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "measure(count)",
+                  "format": {
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "places": 0,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Reconciliation Status Summary"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        }
+      ],
+      "layoutVersion": "GRID_V1",
+      "name": "6c714b6f",
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ],
+  "uiSettings": {
+    "applyModeEnabled": false,
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    }
+  }
+}

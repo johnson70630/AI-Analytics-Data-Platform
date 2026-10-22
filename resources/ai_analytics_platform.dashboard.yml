@@ -1,0 +1,6 @@
+resources:
+  dashboards:
+    ai_analytics_platform:
+      display_name: "AI Analytics Platform"
+      warehouse_id: 08401a2b34023edc
+      file_path: ../src/ai_analytics_platform.lvdash.json
