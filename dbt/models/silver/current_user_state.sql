@@ -1,3 +1,7 @@
+{% if target.type == 'databricks' %}
+    {{ config(schema='pii') }}
+{% endif %}
+
 with base_users as (
     select
         user_id,
