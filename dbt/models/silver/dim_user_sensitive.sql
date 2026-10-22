@@ -1,5 +1,5 @@
 {% if target.type == 'databricks' %}
-    {{ config(materialized='table') }}
+    {{ config(materialized='table', schema='pii') }}
 {% else %}
     {{ config(
         materialized='table',
