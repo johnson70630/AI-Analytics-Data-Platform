@@ -209,8 +209,9 @@ def test_empty_results_return_zero_counts():
         }
 
 
-def test_tool_auto_discovery_includes_jobs_and_observability():
+def test_tool_auto_discovery_includes_all_read_only_dataops_tools():
     names = {tool.name for tool in all_tools()}
 
     assert "get_latest_pipeline_run" in names
     assert "get_latest_observability_summary" in names
+    assert "ask_genie_observability" in names
