@@ -156,9 +156,30 @@ def test_demo_ui_routes(monkeypatch):
     index = client.get("/")
     assert index.status_code == 200
     assert index.headers["cache-control"] == "no-store"
+    assert "DataOps AI Command Center" in index.text
     assert 'id="new-session"' in index.text
     assert 'id="session-list"' in index.text
+    assert 'id="session-persistence-note"' in index.text
     assert 'id="model-select"' in index.text
+    assert 'id="sidebar-toggle"' in index.text
+    assert 'id="evidence-toggle"' in index.text
+    assert 'id="runtime-settings"' in index.text
+    assert 'id="runtime-drawer" class="runtime-drawer" hidden' in index.text
+    assert 'id="rail-expand"' in index.text
+    assert 'id="rail-new-session"' in index.text
+    assert 'id="rail-runtime"' in index.text
+    assert 'id="runtime-transport"' in index.text
+    assert 'id="runtime-session"' in index.text
+    assert 'id="runtime-model"' in index.text
+    assert 'styles.css?v=7' in index.text
+    assert 'conversations.js?v=1' in index.text
+    assert 'app.js?v=8' in index.text
+    conversation_script = client.get("/ui-assets/conversations.js")
+    assert conversation_script.status_code == 200
+    assert conversation_script.headers["cache-control"] == "no-store"
+    assert "function mergeBackendSessions(" in conversation_script.text
+    assert "function serializeConversationIndex(" in conversation_script.text
+    assert "function canSwitchConversation(" in conversation_script.text
     app_script = client.get("/ui-assets/app.js")
     assert app_script.status_code == 200
     assert app_script.headers["cache-control"] == "no-store"
@@ -179,36 +200,57 @@ def test_demo_ui_routes(monkeypatch):
     assert "config.session_id" not in app_script.text
     assert "setSessionId(sessionId);" in app_script.text
     assert "setSessionId(state.sessionId);" in app_script.text
+    assert 'const CONVERSATION_INDEX_STORAGE_KEY = "dataops-conversation-index-v1";' in app_script.text
+    assert "conversationIndex.titleFromQuestion(content)" in app_script.text
+    assert "conversationIndex.mergeBackendSessions(" in app_script.text
+    assert "state.unavailableSessions.add(sessionId);" in app_script.text
+    assert "sessionId !== state.sessionId" in app_script.text
+    assert "state.pendingInterruptSessionId !== sessionId" in app_script.text
     assert 'fetch("/api/invocations"' in app_script.text
+    assert 'details.className = "tool-card"' in app_script.text
+    assert "function syncPanelToggles()" in app_script.text
+    assert "function openRuntimeDrawer()" in app_script.text
+    assert 'document.body.classList.toggle("evidence-open")' in app_script.text
+    assert 'window.matchMedia("(max-width: 1100px)")' in app_script.text
+    assert "function appendError(" in app_script.text
+    assert 'appendMessage("error", message, "Request failed")' in app_script.text
     # Routing key: a shared helper composed into both the submit POST and the background poll
     # GET, so every replica-scoped request is pinned to the session that started it.
-    assert "function routingHeaders()" in app_script.text
-    assert 'if (state.sessionId) headers["X-Routing-Key"] = state.sessionId;' in app_script.text
-    assert 'return { "Content-Type": "application/json", ...routingHeaders() };' in app_script.text
+    assert "function routingHeaders(sessionId = state.sessionId)" in app_script.text
+    assert 'if (sessionId) headers["X-Routing-Key"] = sessionId;' in app_script.text
+    assert 'return { "Content-Type": "application/json", ...routingHeaders(sessionId) };' in app_script.text
     assert (
         "fetch(`/api/invocations/${encodeURIComponent(invocationId)}`, {\n"
         '      cache: "no-store",\n'
         '      credentials: "same-origin",\n'
-        "      headers: routingHeaders(),\n"
+        "      headers: routingHeaders(sessionId),\n"
         "    })"
     ) in app_script.text
     # Session-scoped demo GETs carry the routing key so history refreshes hit the same replica.
     assert (
-        'fetch(demoUrl("/api/demo/session/items"), { cache: "no-store", headers: routingHeaders() })'
+        'fetch(demoUrl("/api/demo/session/items", sessionId), {'
     ) in app_script.text
     assert (
-        'fetch(demoUrl("/api/demo/sessions"), { cache: "no-store", headers: routingHeaders() })'
+        'fetch(demoUrl("/api/demo/sessions", sessionId), {'
     ) in app_script.text
-    assert (
-        "fetch(demoUrl(`/api/demo/sessions/${encodeURIComponent(sessionId)}/open`), {\n"
-        '      method: "POST",\n'
-        '      credentials: "same-origin",\n'
-        "      headers: routingHeaders(),\n"
-        "    })"
-    ) in app_script.text
+    assert "headers: routingHeaders(previousSessionId)" in app_script.text
     styles = client.get("/ui-assets/styles.css").text
     assert "@media (min-width: 1181px)" in styles
     assert "scrollbar-gutter: stable" in styles
+    assert "color-scheme: dark" in styles
+    assert "@media (prefers-reduced-motion: reduce)" in styles
+    assert "@media (max-width: 1180px)" in styles
+    assert "@media (max-width: 820px)" in styles
+    assert "@media (max-width: 560px)" in styles
+    assert "body.evidence-open .right-rail" in styles
+    assert "body.sidebar-open .left-rail" in styles
+    assert "grid-template-columns: 240px minmax(0, 1fr)" in styles
+    assert "body.sidebar-collapsed .sidebar-icon-rail" in styles
+    assert ".runtime-drawer[hidden]" in styles
+    assert "@media (max-width: 1100px)" in styles
+    assert "@media (max-width: 760px)" in styles
+    assert "@media (max-width: 390px)" in styles
+    assert ".message.error .message-content" in styles
 
     config = client.get("/api/ui/config").json()
     assert config["session_id"] == "routing-session"
@@ -341,6 +383,15 @@ def test_unmanaged_checkpoint_history_route(monkeypatch):
         "local-session",
         "checkpoint reply",
     ]
+
+    # The browser can switch local conversations by changing only the session UUID; transcript
+    # restoration stays backed by the checkpoint-history endpoint rather than localStorage.
+    client.params = {"session_id": "conversation-a"}
+    conversation_a = client.get("/api/demo/session/items").json()
+    client.params = {"session_id": "conversation-b"}
+    conversation_b = client.get("/api/demo/session/items").json()
+    assert conversation_a["session_items"][0]["data"]["content"] == "conversation-a"
+    assert conversation_b["session_items"][0]["data"]["content"] == "conversation-b"
 
 
 def test_managed_session_list_is_actor_scoped(monkeypatch):

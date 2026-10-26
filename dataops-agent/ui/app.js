@@ -27,6 +27,7 @@ const elements = {
   sessionId: document.querySelector("#session-id"),
   sessionItems: document.querySelector("#session-items"),
   sessionList: document.querySelector("#session-list"),
+  sessionPersistenceNote: document.querySelector("#session-persistence-note"),
   sessionMode: document.querySelector("#session-mode-value"),
   sessionStatus: document.querySelector("#session-status"),
   sessionStoreLabel: document.querySelector("#session-store-label"),
@@ -58,16 +59,37 @@ const elements = {
   memoryModalBody: document.querySelector("#memory-modal-body"),
   memoryModalFoot: document.querySelector("#memory-modal-foot"),
   memoryModalClose: document.querySelector("#memory-modal-close"),
+  sidebarToggle: document.querySelector("#sidebar-toggle"),
+  evidenceToggle: document.querySelector("#evidence-toggle"),
+  runtimeTransport: document.querySelector("#runtime-transport"),
+  runtimeSession: document.querySelector("#runtime-session"),
+  runtimeModel: document.querySelector("#runtime-model"),
+  runtimeSettings: document.querySelector("#runtime-settings"),
+  runtimeDrawer: document.querySelector("#runtime-drawer"),
+  runtimeDrawerClose: document.querySelector("#runtime-drawer-close"),
+  railExpand: document.querySelector("#rail-expand"),
+  railNewSession: document.querySelector("#rail-new-session"),
+  railRuntime: document.querySelector("#rail-runtime"),
 };
 
 // The framework label shown in the header subtitle, next to the host.
 const AGENT_FRAMEWORK = "LangGraph";
 
 const SESSION_STORAGE_KEY = "databricks-agentbricks-session-id";
+const CONVERSATION_INDEX_STORAGE_KEY = "dataops-conversation-index-v1";
+const conversationIndex = window.DataOpsConversationIndex;
+
+if (!conversationIndex) throw new Error("Conversation index helpers failed to load.");
 
 function newSessionId() {
   return crypto.randomUUID();
 }
+
+const initialSessionId = localStorage.getItem(SESSION_STORAGE_KEY) || newSessionId();
+const initialConversations = conversationIndex.parseConversationIndex(
+  localStorage.getItem(CONVERSATION_INDEX_STORAGE_KEY),
+  initialSessionId,
+);
 
 const state = {
   busy: false,
@@ -80,14 +102,17 @@ const state = {
   eventFilter: "all",
   selectedEventId: null,
   sessionFilter: "",
-  sessions: [],
+  sessions: initialConversations,
+  unavailableSessions: new Set(),
+  sessionEpoch: 0,
   instanceId: null,
   lastAssistantText: "",
   managedSessionId: "",
   model: "",
   mode: "streaming",
   pendingInterrupt: null,
-  sessionId: localStorage.getItem(SESSION_STORAGE_KEY) || newSessionId(),
+  pendingInterruptSessionId: "",
+  sessionId: initialSessionId,
 };
 
 function ensureSessionId() {
@@ -95,20 +120,42 @@ function ensureSessionId() {
   return state.sessionId;
 }
 
+function persistConversationIndex() {
+  try {
+    localStorage.setItem(
+      CONVERSATION_INDEX_STORAGE_KEY,
+      conversationIndex.serializeConversationIndex(state.sessions),
+    );
+  } catch (error) {
+    console.warn("Conversation metadata could not be persisted.", error);
+  }
+}
+
+function registerConversation(sessionId, changes = {}) {
+  state.sessions = conversationIndex.upsertConversation(state.sessions, sessionId, changes);
+  persistConversationIndex();
+  renderSessionList();
+  return state.sessions.find((item) => item.session_id === sessionId);
+}
+
 function setSessionId(value) {
   const nextSessionId = String(value || "");
   if (!nextSessionId) return;
-  if (state.sessionId !== nextSessionId) state.managedSessionId = "";
+  if (state.sessionId !== nextSessionId) {
+    state.managedSessionId = "";
+    state.sessionEpoch += 1;
+  }
   state.sessionId = nextSessionId;
   localStorage.setItem(SESSION_STORAGE_KEY, state.sessionId);
   elements.sessionId.textContent = state.sessionId;
+  registerConversation(state.sessionId);
 }
 
 setSessionId(state.sessionId);
 
-function demoUrl(path) {
+function demoUrl(path, sessionId = ensureSessionId()) {
   const url = new URL(path, window.location.origin);
-  url.searchParams.set("session_id", ensureSessionId());
+  url.searchParams.set("session_id", sessionId);
   return `${url.pathname}${url.search}`;
 }
 
@@ -130,6 +177,7 @@ function setBusy(busy, label = "Working") {
   elements.approveAction.disabled = busy;
   elements.rejectAction.disabled = busy;
   elements.newSession.disabled = busy;
+  elements.railNewSession.disabled = busy;
   elements.modelSelect.disabled = busy || elements.modelSelect.options.length <= 1;
   elements.refreshSession.disabled = busy || !state.config?.session.history;
   elements.resumeSession.disabled = busy || !state.config?.session.durable;
@@ -520,6 +568,14 @@ function appendMessage(role, content, label, { time } = {}) {
 
   if (role === "user") {
     wrapper.append(text);
+  } else if (role === "tool") {
+    const details = document.createElement("details");
+    details.className = "tool-card";
+    details.open = content.length < 700;
+    const summary = document.createElement("summary");
+    summary.textContent = label || "Tool evidence";
+    details.append(summary, text);
+    wrapper.append(details);
   } else {
     const head = document.createElement("div");
     head.className = "message-head";
@@ -614,43 +670,52 @@ function interruptSummary(interrupt) {
     .join(" · ");
 }
 
-function handleInterrupt(interrupt) {
+function handleInterrupt(interrupt, sessionId = ensureSessionId()) {
+  if (sessionId !== state.sessionId) return;
   finishDraft();
   state.pendingInterrupt = interrupt;
+  state.pendingInterruptSessionId = sessionId;
   elements.approvalSummary.textContent = interruptSummary(interrupt);
   elements.approvalPanel.hidden = false;
   appendMessage("system", interruptSummary(interrupt), "Approval required");
 }
 
-function handleEvent(event) {
+function handleEvent(event, sessionId = ensureSessionId()) {
+  if (sessionId !== state.sessionId) {
+    addEvent("session.event.deferred", { session_id: sessionId, event_type: event?.type || "event" });
+    return;
+  }
   addEvent(event?.type || "event", event);
   if (event?.type === "delta") appendDelta(event.content);
   if (event?.type === "message") handleAgentMessage(event.message);
-  if (event?.type === "interrupt") handleInterrupt(event);
+  if (event?.type === "interrupt") handleInterrupt(event, sessionId);
   if (event?.error) throw new Error(event.error);
 }
 
-function handleOutput(output) {
+function handleOutput(output, sessionId = ensureSessionId()) {
+  if (sessionId !== state.sessionId) {
+    addEvent("session.output.deferred", { session_id: sessionId });
+    return;
+  }
   for (const item of output || []) {
-    if (item?.type === "interrupt") handleInterrupt(item);
+    if (item?.type === "interrupt") handleInterrupt(item, sessionId);
     else handleAgentMessage(item);
   }
   finishDraft();
 }
 
-function routingHeaders() {
+function routingHeaders(sessionId = state.sessionId) {
   const headers = {};
   // The UI reuses its stable session value for routing affinity, but the header is routing-only.
-  if (state.sessionId) headers["X-Routing-Key"] = state.sessionId;
+  if (sessionId) headers["X-Routing-Key"] = sessionId;
   return headers;
 }
 
-function invocationHeaders() {
-  return { "Content-Type": "application/json", ...routingHeaders() };
+function invocationHeaders(sessionId = state.sessionId) {
+  return { "Content-Type": "application/json", ...routingHeaders(sessionId) };
 }
 
-function invocationPayload(payload, transport = {}) {
-  const sessionId = ensureSessionId();
+function invocationPayload(payload, transport = {}, sessionId = ensureSessionId()) {
   const input = {
     actor: state.config?.session.actor || sessionId,
     ...payload,
@@ -834,6 +899,7 @@ async function loadMemory() {
 }
 
 function openMemoryPane() {
+  openRuntimeDrawer();
   elements.leftCard.classList.add("memory-open");
   elements.capabilitiesBlock.hidden = true;
   elements.memoryPane.hidden = false;
@@ -847,6 +913,20 @@ function closeMemoryPane() {
   elements.leftCard.classList.remove("memory-open");
   elements.memoryPane.hidden = true;
   elements.capabilitiesBlock.hidden = false;
+}
+
+function openRuntimeDrawer() {
+  elements.runtimeDrawer.hidden = false;
+  elements.runtimeSettings.setAttribute("aria-expanded", "true");
+  document.body.classList.add("runtime-open");
+  elements.runtimeDrawerClose.focus();
+}
+
+function closeRuntimeDrawer({ restoreFocus = true } = {}) {
+  elements.runtimeDrawer.hidden = true;
+  elements.runtimeSettings.setAttribute("aria-expanded", "false");
+  document.body.classList.remove("runtime-open");
+  if (restoreFocus) elements.runtimeSettings.focus();
 }
 
 function openMemoryModal(entry) {
@@ -887,7 +967,12 @@ function relativeTime(value) {
 }
 
 function renderSessions(items) {
-  state.sessions = items || [];
+  state.sessions = conversationIndex.mergeBackendSessions(
+    state.sessions,
+    items || [],
+    state.sessionId,
+  );
+  persistConversationIndex();
   renderSessionList();
 }
 
@@ -901,6 +986,7 @@ function renderSessionList() {
   const items = state.sessions.filter(
     (session) =>
       !query ||
+      String(session.title || "").toLowerCase().includes(query) ||
       String(session.session_id || "").toLowerCase().includes(query) ||
       String(session.actor_id || "").toLowerCase().includes(query),
   );
@@ -910,9 +996,10 @@ function renderSessionList() {
   }
   for (const session of items) {
     const current = session.session_id === state.sessionId;
-    const canOpen = !current && state.config?.session.managed;
+    const canOpen = !current;
+    const unavailable = state.unavailableSessions.has(session.session_id);
     const row = document.createElement(canOpen ? "button" : "div");
-    row.className = `session-item${current ? " current" : ""}${canOpen ? " session-open-button" : ""}`;
+    row.className = `session-item${current ? " current" : ""}${canOpen ? " session-open-button" : ""}${unavailable ? " unavailable" : ""}`;
     if (canOpen) {
       row.type = "button";
       row.disabled = state.busy;
@@ -922,10 +1009,10 @@ function renderSessionList() {
     top.className = "session-item-top";
     const title = document.createElement("span");
     title.className = "session-item-title";
-    title.textContent = current ? "Current session" : "Session";
+    title.textContent = session.title || conversationIndex.DEFAULT_TITLE;
     const time = document.createElement("span");
     time.className = "session-item-time";
-    time.textContent = current ? "Active" : relativeTime(session.last_activity_time || session.create_time);
+    time.textContent = current ? "Active" : unavailable ? "Unavailable" : relativeTime(session.updated_at);
     top.append(title, time);
     const id = document.createElement("span");
     id.className = "session-item-id";
@@ -963,18 +1050,17 @@ function renderSessionTranscript(items) {
   }
 }
 
-async function ensureManagedSession() {
+async function ensureManagedSession(sessionId = ensureSessionId()) {
   if (!state.config?.session.managed) return null;
-  const sessionId = ensureSessionId();
   if (state.managedSessionId === sessionId) return sessionId;
-  stateMessage(elements.sessionItems, "Connecting managed session…", "loading");
-  const response = await fetch(demoUrl("/api/demo/sessions"), {
+  if (sessionId === state.sessionId) stateMessage(elements.sessionItems, "Connecting managed session…", "loading");
+  const response = await fetch(demoUrl("/api/demo/sessions", sessionId), {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...routingHeaders() },
+    headers: { "Content-Type": "application/json", ...routingHeaders(sessionId) },
     body: "{}",
   });
   const result = await jsonResponse(response);
-  state.managedSessionId = sessionId;
+  if (sessionId === state.sessionId) state.managedSessionId = sessionId;
   addEvent("session.managed", result);
   return sessionId;
 }
@@ -982,34 +1068,65 @@ async function ensureManagedSession() {
 async function refreshSession({ hydrateChat = false } = {}) {
   if (!state.config?.session.history) {
     stateMessage(elements.sessionItems, "Session history is not available.");
-    return;
+    return { ok: false, items: [] };
   }
+  const sessionId = ensureSessionId();
+  const sessionEpoch = state.sessionEpoch;
   try {
-    const sessionId = state.config.session.managed ? await ensureManagedSession() : ensureSessionId();
-    const response = await fetch(demoUrl("/api/demo/session/items"), { cache: "no-store", headers: routingHeaders() });
+    if (state.config.session.managed) await ensureManagedSession(sessionId);
+    const response = await fetch(demoUrl("/api/demo/session/items", sessionId), {
+      cache: "no-store",
+      headers: routingHeaders(sessionId),
+    });
     const result = await jsonResponse(response);
     const items = sessionItems(result);
+    if (sessionId !== state.sessionId || sessionEpoch !== state.sessionEpoch) return { ok: false, stale: true, items: [] };
     renderSessionItems(items);
     if (hydrateChat) {
       renderSessionTranscript(items);
-      for (const interrupt of result.interrupts || []) handleInterrupt(interrupt);
+      for (const interrupt of result.interrupts || []) handleInterrupt(interrupt, sessionId);
+      const indexed = state.sessions.find((item) => item.session_id === sessionId);
+      if (!items.length && indexed?.title !== conversationIndex.DEFAULT_TITLE) {
+        state.unavailableSessions.add(sessionId);
+        appendError(new Error(
+          state.config.session.managed
+            ? "No transcript was returned for this conversation. It may be unavailable or expired."
+            : "No transcript was returned for this conversation. In-process conversation history does not survive a backend restart.",
+        ));
+      } else {
+        state.unavailableSessions.delete(sessionId);
+      }
+      renderSessionList();
     }
     addEvent("session.items.list", result);
+    return { ok: true, items, result };
   } catch (error) {
+    if (sessionId !== state.sessionId || sessionEpoch !== state.sessionEpoch) return { ok: false, stale: true, items: [] };
+    state.unavailableSessions.add(sessionId);
     stateMessage(elements.sessionItems, error instanceof Error ? error.message : String(error), "error");
+    if (hydrateChat) {
+      renderSessionTranscript([]);
+      appendError(new Error(`Conversation history is unavailable: ${error instanceof Error ? error.message : String(error)}`));
+    }
+    renderSessionList();
     addEvent("session.error", { message: String(error) });
+    return { ok: false, items: [], error };
   }
 }
 
 async function refreshSessions() {
-  stateMessage(elements.sessionList, "Loading sessions…", "loading");
+  const sessionId = ensureSessionId();
+  if (!state.sessions.length) stateMessage(elements.sessionList, "Loading sessions…", "loading");
   try {
-    const response = await fetch(demoUrl("/api/demo/sessions"), { cache: "no-store", headers: routingHeaders() });
+    const response = await fetch(demoUrl("/api/demo/sessions", sessionId), {
+      cache: "no-store",
+      headers: routingHeaders(sessionId),
+    });
     const result = await jsonResponse(response);
     renderSessions(sessions(result));
     addEvent("sessions.list", result);
   } catch (error) {
-    stateMessage(elements.sessionList, error instanceof Error ? error.message : String(error), "error");
+    renderSessionList();
     addEvent("session.error", { message: String(error) });
   }
 }
@@ -1019,17 +1136,18 @@ async function refreshSessionView({ hydrateChat = false } = {}) {
   await refreshSessions();
 }
 
-async function invokeSync(payload) {
+async function invokeSync(payload, sessionId = ensureSessionId()) {
+  const invocation = invocationPayload(payload, {}, sessionId);
   const response = await fetch("/api/invocations", {
     method: "POST",
     credentials: "same-origin",
-    headers: invocationHeaders(),
-    body: JSON.stringify(invocationPayload(payload)),
+    headers: invocationHeaders(sessionId),
+    body: JSON.stringify(invocation),
   });
   const result = await jsonResponse(response);
   const output = agentResult(result);
   addEvent("response", result);
-  handleOutput(output.output);
+  handleOutput(output.output, sessionId);
   return output;
 }
 
@@ -1043,12 +1161,12 @@ function parseSseFrame(frame) {
   return JSON.parse(data);
 }
 
-async function invokeStreaming(payload) {
-  const invocation = invocationPayload(payload, { stream: true });
+async function invokeStreaming(payload, sessionId = ensureSessionId()) {
+  const invocation = invocationPayload(payload, { stream: true }, sessionId);
   const response = await fetch("/api/invocations", {
     method: "POST",
     credentials: "same-origin",
-    headers: invocationHeaders(),
+    headers: invocationHeaders(sessionId),
     body: JSON.stringify(invocation),
   });
   if (!response.ok || !response.body) await jsonResponse(response);
@@ -1064,14 +1182,14 @@ async function invokeStreaming(payload) {
     for (const frame of frames) {
       const event = parseSseFrame(frame);
       if (["run.failed", "run.completed"].includes(event?.type)) terminal = event.type;
-      if (event) handleEvent(event);
+      if (event) handleEvent(event, sessionId);
     }
     if (done) break;
   }
   if (buffer.trim()) {
     const event = parseSseFrame(buffer);
     if (["run.failed", "run.completed"].includes(event?.type)) terminal = event.type;
-    if (event) handleEvent(event);
+    if (event) handleEvent(event, sessionId);
   }
   if (terminal === "run.failed") {
     throw new Error(`Agent invocation ${invocation.id} failed. Check server logs for details.`);
@@ -1079,18 +1197,20 @@ async function invokeStreaming(payload) {
   if (terminal !== "run.completed") {
     throw new Error(`Stream disconnected before invocation ${invocation.id} completed. Check its status before retrying.`);
   }
-  finishDraft();
-  return { status: state.pendingInterrupt ? "interrupted" : "completed" };
+  if (sessionId === state.sessionId) finishDraft();
+  return {
+    status: state.pendingInterruptSessionId === sessionId ? "interrupted" : "completed",
+  };
 }
 
-async function pollBackground(invocationId) {
+async function pollBackground(invocationId, sessionId) {
   let delay = 850;
   while (true) {
     await new Promise((resolve) => setTimeout(resolve, delay));
     const response = await fetch(`/api/invocations/${encodeURIComponent(invocationId)}`, {
       cache: "no-store",
       credentials: "same-origin",
-      headers: routingHeaders(),
+      headers: routingHeaders(sessionId),
     });
     if (response.status === 404) {
       throw new Error(`Background invocation ${invocationId} is no longer available. Check server logs and tool side effects before retrying.`);
@@ -1099,46 +1219,57 @@ async function pollBackground(invocationId) {
     addEvent("background.poll", result);
     if (result.status === "completed") {
       const output = agentResult(result);
-      handleOutput(output.output);
+      handleOutput(output.output, sessionId);
       return output;
     }
     if (result.status === "failed") throw new Error(`Background invocation ${invocationId} failed. ${result.error?.message || result.error || "Check server logs for details."}`);
-    setStatus(`Background · ${result.status}`, "busy");
+    if (sessionId === state.sessionId) setStatus(`Background · ${result.status}`, "busy");
     // Reduce polling load for long runs without imposing an execution deadline.
     delay = Math.min(delay * 1.5, 5000);
   }
 }
 
-async function invokeBackground(payload) {
+async function invokeBackground(payload, sessionId = ensureSessionId()) {
+  const invocation = invocationPayload(payload, { background: true }, sessionId);
   const response = await fetch("/api/invocations", {
     method: "POST",
     credentials: "same-origin",
-    headers: invocationHeaders(),
-    body: JSON.stringify(invocationPayload(payload, { background: true })),
+    headers: invocationHeaders(sessionId),
+    body: JSON.stringify(invocation),
   });
   const started = await jsonResponse(response);
   addEvent("background.started", started);
-  setStatus(`Background · ${started.id}`, "busy");
-  return pollBackground(started.id);
+  if (sessionId === state.sessionId) setStatus(`Background · ${started.id}`, "busy");
+  return pollBackground(started.id, sessionId);
 }
 
-async function dispatch(payload, mode = state.mode) {
+async function dispatch(payload, mode = state.mode, sessionId = ensureSessionId()) {
   state.lastAssistantText = "";
   state.pendingInterrupt = null;
+  state.pendingInterruptSessionId = "";
   elements.approvalPanel.hidden = true;
-  if (mode === "streaming") return invokeStreaming(payload);
-  if (mode === "background") return invokeBackground(payload);
-  return invokeSync(payload);
+  if (mode === "streaming") return invokeStreaming(payload, sessionId);
+  if (mode === "background") return invokeBackground(payload, sessionId);
+  return invokeSync(payload, sessionId);
 }
 
 async function sendText(text, mode = state.mode) {
   const content = text.trim();
   if (!content || state.busy) return "";
+  const sessionId = ensureSessionId();
+  const indexed = state.sessions.find((item) => item.session_id === sessionId);
+  state.unavailableSessions.delete(sessionId);
+  registerConversation(sessionId, {
+    title: indexed?.title === conversationIndex.DEFAULT_TITLE
+      ? conversationIndex.titleFromQuestion(content)
+      : indexed?.title,
+    updated_at: new Date().toISOString(),
+  });
   appendMessage("user", content, "You");
   setBusy(true, mode === "background" ? "Starting background run" : mode === "streaming" ? "Streaming" : "Running");
   try {
-    await dispatch({ messages: [{ role: "user", content }] }, mode);
-    await refreshSessionView();
+    await dispatch({ messages: [{ role: "user", content }] }, mode, sessionId);
+    if (sessionId === state.sessionId) await refreshSessionView();
     return state.lastAssistantText;
   } catch (error) {
     finishDraft();
@@ -1151,6 +1282,11 @@ async function sendText(text, mode = state.mode) {
 
 async function resume(decision) {
   if (state.busy) return;
+  const sessionId = ensureSessionId();
+  if (state.pendingInterrupt && state.pendingInterruptSessionId !== sessionId) {
+    appendError(new Error("The pending approval belongs to a different conversation. Reopen that conversation before deciding."));
+    return;
+  }
   if (!state.pendingInterrupt && !state.config?.session.durable) {
     appendError(new Error("No paused run is loaded for the current routing session."));
     return;
@@ -1162,8 +1298,8 @@ async function resume(decision) {
   appendMessage("system", decision === "approve" ? "Approved pending tool call." : "Rejected pending tool call.", "Human decision");
   setBusy(true, "Resuming");
   try {
-    await dispatch(payload, "streaming");
-    await refreshSessionView();
+    await dispatch(payload, "streaming", sessionId);
+    if (sessionId === state.sessionId) await refreshSessionView();
   } catch (error) {
     appendError(error);
   } finally {
@@ -1173,6 +1309,7 @@ async function resume(decision) {
 
 function clearChat({ recordEvent = true } = {}) {
   state.pendingInterrupt = null;
+  state.pendingInterruptSessionId = "";
   state.draft = null;
   state.draftText = "";
   state.lastAssistantText = "";
@@ -1185,7 +1322,7 @@ function clearChat({ recordEvent = true } = {}) {
 
 function resetSessionState() {
   clearChat({ recordEvent: false });
-  stateMessage(elements.sessionList, "Loading sessions…", "loading");
+  renderSessionList();
   stateMessage(elements.sessionItems, "Loading transcript…", "loading");
 }
 
@@ -1207,15 +1344,31 @@ async function createNewSession() {
 }
 
 async function openSession(sessionId) {
-  if (state.busy || !sessionId || sessionId === state.sessionId) return;
+  if (!conversationIndex.canSwitchConversation({
+    busy: state.busy,
+    currentSessionId: state.sessionId,
+    targetSessionId: sessionId,
+  })) {
+    if (state.busy && sessionId && sessionId !== state.sessionId) {
+      addEvent("session.switch.blocked", { session_id: sessionId, reason: "invocation_active" });
+    }
+    return;
+  }
   setBusy(true, "Opening session");
   try {
-    const response = await fetch(demoUrl(`/api/demo/sessions/${encodeURIComponent(sessionId)}/open`), {
-      method: "POST",
-      credentials: "same-origin",
-      headers: routingHeaders(),
-    });
-    const result = await jsonResponse(response);
+    const previousSessionId = ensureSessionId();
+    let result = { session_id: sessionId, previous_session_id: previousSessionId, managed: false };
+    if (state.config?.session.managed) {
+      const response = await fetch(
+        demoUrl(`/api/demo/sessions/${encodeURIComponent(sessionId)}/open`, previousSessionId),
+        {
+          method: "POST",
+          credentials: "same-origin",
+          headers: routingHeaders(previousSessionId),
+        },
+      );
+      result = await jsonResponse(response);
+    }
     setSessionId(sessionId);
     resetSessionState();
     addEvent("session.open", result);
@@ -1240,6 +1393,7 @@ function renderModels(models) {
   }
   // A single choice is informational, not a decision to make.
   elements.modelSelect.disabled = state.busy || available.length <= 1;
+  elements.runtimeModel.textContent = state.model || "Unavailable";
   sizeModelSelect();
 }
 
@@ -1282,6 +1436,8 @@ async function loadConfig() {
     elements.backgroundMode.textContent = config.background.mode;
     elements.sessionMode.textContent = config.session.mode;
     elements.memoryMode.textContent = config.memory.enabled ? `Managed · actor ${config.memory.actor}` : "Not connected";
+    elements.runtimeTransport.textContent = config.streaming.transport;
+    elements.runtimeSession.textContent = config.session.managed ? "Managed" : "In process";
     setCapability(
       elements.streamingStatus,
       config.streaming.enabled,
@@ -1333,6 +1489,9 @@ async function loadConfig() {
       : config.session.history
         ? "Messages load from the in-process LangGraph checkpoint for the current browser session."
         : "Session history is unavailable.";
+    elements.sessionPersistenceNote.textContent = config.session.managed
+      ? "Conversation transcripts come from the managed Session Store."
+      : "This browser remembers conversation names, but in-process transcripts are lost when the backend restarts.";
     addEvent("runtime.config", config);
     void refreshSessionView({ hydrateChat: true });
     // The memory pane loads lazily when opened; refresh it if it is already open.
@@ -1379,6 +1538,7 @@ document.querySelectorAll(".mode-button").forEach((button) => {
 
 elements.modelSelect.addEventListener("change", () => {
   state.model = elements.modelSelect.value;
+  elements.runtimeModel.textContent = state.model || "Unavailable";
   sizeModelSelect();
   addEvent("model.selected", { model: state.model });
 });
@@ -1400,6 +1560,7 @@ elements.copySession.addEventListener("click", async () => {
 
 elements.refreshConfig.addEventListener("click", () => loadConfig().catch(appendError));
 elements.newSession.addEventListener("click", createNewSession);
+elements.railNewSession.addEventListener("click", createNewSession);
 elements.refreshSession.addEventListener("click", () => refreshSessionView({ hydrateChat: true }));
 elements.clearEvents.addEventListener("click", () => {
   state.events = [];
@@ -1442,6 +1603,16 @@ elements.memoryModal.addEventListener("click", (event) => {
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !elements.memoryModal.hidden) closeMemoryModal();
+  else if (event.key === "Escape" && !elements.runtimeDrawer.hidden) closeRuntimeDrawer();
+  else if (event.key === "Escape" && document.body.classList.contains("evidence-open")) {
+    document.body.classList.remove("evidence-open");
+    syncPanelToggles();
+    elements.evidenceToggle.focus();
+  } else if (event.key === "Escape" && document.body.classList.contains("sidebar-open")) {
+    document.body.classList.remove("sidebar-open");
+    syncPanelToggles();
+    elements.sidebarToggle.focus();
+  }
 });
 
 // Sessions search.
@@ -1474,8 +1645,45 @@ elements.copyEventDetail.addEventListener("click", async () => {
   }
 });
 
-// Header subtitle: framework · host (host is only known client-side).
-if (elements.brandSub) elements.brandSub.textContent = `${AGENT_FRAMEWORK} · ${window.location.host}`;
+function syncPanelToggles() {
+  const drawerNavigation = window.matchMedia("(max-width: 1100px)").matches;
+  const sidebarVisible = drawerNavigation
+    ? document.body.classList.contains("sidebar-open")
+    : !document.body.classList.contains("sidebar-collapsed");
+  const evidenceVisible = document.body.classList.contains("evidence-open");
+  elements.sidebarToggle.setAttribute("aria-expanded", String(sidebarVisible));
+  elements.evidenceToggle.setAttribute("aria-expanded", String(evidenceVisible));
+}
+
+elements.sidebarToggle.addEventListener("click", () => {
+  if (window.matchMedia("(max-width: 1100px)").matches) {
+    document.body.classList.toggle("sidebar-open");
+  } else {
+    document.body.classList.toggle("sidebar-collapsed");
+  }
+  syncPanelToggles();
+});
+
+elements.evidenceToggle.addEventListener("click", () => {
+  document.body.classList.toggle("evidence-open");
+  syncPanelToggles();
+});
+
+elements.railExpand.addEventListener("click", () => {
+  document.body.classList.remove("sidebar-collapsed");
+  syncPanelToggles();
+  elements.sidebarToggle.focus();
+});
+
+elements.runtimeSettings.addEventListener("click", openRuntimeDrawer);
+elements.railRuntime.addEventListener("click", openRuntimeDrawer);
+elements.runtimeDrawerClose.addEventListener("click", () => closeRuntimeDrawer());
+
+window.addEventListener("resize", syncPanelToggles);
+syncPanelToggles();
+
+// Header subtitle: product · framework · host (host is only known client-side).
+if (elements.brandSub) elements.brandSub.textContent = `DataOps Copilot · ${AGENT_FRAMEWORK} · ${window.location.host}`;
 elements.approveAction.addEventListener("click", () => resume("approve"));
 elements.rejectAction.addEventListener("click", () => resume("reject"));
 elements.resumeSession.addEventListener("click", () => resume("approve"));
