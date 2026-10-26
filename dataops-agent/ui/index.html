@@ -3,21 +3,29 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light dark" />
-    <title>Agent Bricks Workbench</title>
-    <link rel="stylesheet" href="/ui-assets/styles.css?v=5" />
+    <meta name="color-scheme" content="dark" />
+    <title>DataOps AI Command Center</title>
+    <link rel="stylesheet" href="/ui-assets/styles.css?v=7" />
   </head>
   <body>
     <div class="app-shell">
       <header class="topbar">
         <div class="brand-lockup">
-          <span class="brand-mark" aria-hidden="true">AB</span>
+          <span class="brand-mark" aria-hidden="true">DO</span>
           <div class="brand-copy">
-            <h1>Agent Bricks Workbench</h1>
-            <p class="brand-sub" id="brand-sub">LangGraph</p>
+            <h1>DataOps AI Command Center</h1>
+            <p class="brand-sub" id="brand-sub">Operational copilot</p>
           </div>
         </div>
         <div class="header-actions">
+          <button id="sidebar-toggle" class="header-toggle" type="button" aria-label="Toggle conversations panel" aria-controls="left-rail" aria-expanded="true">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
+            <span>Conversations</span>
+          </button>
+          <button id="evidence-toggle" class="header-toggle" type="button" aria-label="Toggle evidence console" aria-controls="right-rail" aria-expanded="false">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg>
+            <span>Evidence</span>
+          </button>
           <div class="viewer-chip">
             <p id="viewer-value">Loading viewer…</p>
             <span class="avatar" id="viewer-avatar" aria-hidden="true"></span>
@@ -26,15 +34,46 @@
       </header>
 
       <div class="trust-strip">
-        <span>AI-generated responses can be wrong. Verify important output.</span>
+        <span class="trust-kicker"><span class="trust-dot" aria-hidden="true"></span>Read-only operational intelligence</span>
+        <span>Conclusions are limited to retrieved evidence and monitored checks.</span>
       </div>
 
       <main class="workspace">
-        <aside class="left-rail" aria-label="Runtime configuration">
+        <aside id="left-rail" class="left-rail" aria-label="Conversations and runtime configuration">
+          <nav class="sidebar-icon-rail" aria-label="Collapsed conversations navigation">
+            <button id="rail-expand" class="rail-icon-button" type="button" aria-label="Expand conversations">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
+            </button>
+            <button id="rail-new-session" class="rail-icon-button" type="button" aria-label="New conversation">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <button id="rail-runtime" class="rail-icon-button" type="button" aria-label="Open runtime settings">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
+            </button>
+          </nav>
           <section class="rail-section left-card">
+            <div class="card-block sidebar-intro">
+              <div>
+                <p class="eyebrow">Workspace</p>
+                <h2>Operations cockpit</h2>
+              </div>
+              <button id="runtime-settings" class="icon-button" type="button" aria-label="Open runtime settings" aria-controls="runtime-drawer" aria-expanded="false">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
+              </button>
+            </div>
+            <div id="runtime-drawer" class="runtime-drawer" hidden>
+              <div class="runtime-drawer-head">
+                <div>
+                  <p class="eyebrow">Settings</p>
+                  <h2>Runtime capabilities</h2>
+                </div>
+                <button id="runtime-drawer-close" class="icon-button" type="button" aria-label="Close runtime settings">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
             <div class="card-block capabilities-block" id="capabilities-block">
               <div class="panel-subhead">
-                <h2>Capabilities</h2>
+                <h2>Runtime capabilities</h2>
                 <div class="subhead-actions">
                   <button id="refresh-config" class="icon-button" type="button" aria-label="Refresh capabilities">
                     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
@@ -124,17 +163,18 @@
                 <div class="state-empty">Loading memory…</div>
               </div>
             </div>
+            </div>
 
             <div class="card-block sessions-block">
               <div class="panel-subhead">
-                <h2>Sessions</h2>
+                <h2>Recent conversations</h2>
                 <div class="subhead-actions">
                   <button id="refresh-session" class="icon-button" type="button" aria-label="Refresh sessions">
                     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
                   </button>
                   <button id="new-session" class="text-button" type="button">
                     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                    New session
+                    New
                   </button>
                 </div>
               </div>
@@ -143,6 +183,7 @@
                 <label class="sr-only" for="session-search-input">Search sessions</label>
                 <input id="session-search-input" type="search" placeholder="Search sessions" autocomplete="off" />
               </div>
+              <p id="session-persistence-note" class="session-persistence-note"></p>
               <div id="session-list" class="session-list" aria-live="polite">
                 <div class="state-empty">Loading sessions…</div>
               </div>
@@ -161,7 +202,10 @@
 
         <section class="chat-panel" aria-label="Agent chat">
           <div class="chat-header">
-            <h2>Chat</h2>
+            <div class="chat-heading">
+              <p class="eyebrow">AI operations workspace</p>
+              <h2>DataOps Copilot</h2>
+            </div>
             <span id="run-status" class="run-status">Ready</span>
           </div>
 
@@ -170,13 +214,14 @@
               <div class="empty-mark" aria-hidden="true">
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><ellipse cx="12" cy="12" rx="10" ry="4.3"/><ellipse cx="12" cy="12" rx="10" ry="4.3" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4.3" transform="rotate(120 12 12)"/></svg>
               </div>
-              <h2>Start a conversation</h2>
-              <p>Chat with your project agent from agent/agent.py. Every mode runs its instructions and tools; the model picker changes only the model for this page.</p>
-              <p class="empty-prompts-label">What would you like to test?</p>
+              <p class="eyebrow">Evidence-grounded assistance</p>
+              <h2>What should we investigate?</h2>
+              <p>Inspect pipeline execution and monitored data-quality evidence without changing production systems.</p>
+              <p class="empty-prompts-label">Start with an operational question</p>
               <div class="prompt-grid">
-                <button type="button" data-prompt="Use the get_current_time tool and explain what you did.">Use a tool</button>
-                <button type="button" data-prompt="Remember in this conversation that my launch color is indigo. Do not use long-term memory.">Test session</button>
-                <button type="button" data-prompt="Send a message to demo@databricks.com saying the Agent Bricks demo is ready. Use the send_message tool.">Trigger approval</button>
+                <button type="button" data-prompt="Inspect the latest Lakeflow pipeline run and separate observed execution facts from hypotheses."><span>Pipeline</span>Inspect the latest execution</button>
+                <button type="button" data-prompt="Summarize the latest deterministic observability checks. Distinguish monitoring time from the data reference date."><span>Quality</span>Review monitored checks</button>
+                <button type="button" data-prompt="Use Genie to investigate historical observability anomalies. Return only evidence retrieved by the tool."><span>History</span>Investigate with Genie</button>
               </div>
             </div>
           </div>
@@ -194,7 +239,7 @@
 
           <form id="composer" class="composer">
             <label class="sr-only" for="prompt-input">Message the agent</label>
-            <textarea id="prompt-input" rows="1" placeholder="Ask your agent anything…"></textarea>
+            <textarea id="prompt-input" rows="1" placeholder="Ask about pipeline execution or monitored data quality…"></textarea>
             <div class="composer-footer">
               <div class="mode-switcher" aria-label="Invocation mode">
                 <button class="mode-button active" data-mode="streaming" type="button" title="Show the answer as it is generated">Streaming</button>
@@ -218,10 +263,13 @@
           </form>
         </section>
 
-        <aside class="right-rail" aria-label="Runtime evidence">
+        <aside id="right-rail" class="right-rail" aria-label="Runtime evidence console">
           <section class="control-card event-card">
             <div class="panel-head">
-              <h2>Events</h2>
+              <div class="panel-title-copy">
+                <p class="eyebrow">Session telemetry</p>
+                <h2>Evidence Console</h2>
+              </div>
               <div class="event-actions">
                 <button id="clear-events" class="icon-button" type="button" aria-label="Clear events">
                   <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 21 3.7 17.7a2.4 2.4 0 0 1 0-3.4l9-9a2.4 2.4 0 0 1 3.4 0l3.6 3.6a2.4 2.4 0 0 1 0 3.4L13 20"/><path d="M22 21H10"/><path d="m5 15 5 5"/></svg>
@@ -233,6 +281,15 @@
                   <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>
                 </button>
               </div>
+            </div>
+            <div class="evidence-context">
+              <span class="live-indicator" aria-hidden="true"></span>
+              <span>Current browser session events</span>
+            </div>
+            <div class="runtime-summary" aria-label="Current runtime information">
+              <div><span>Transport</span><strong id="runtime-transport">Loading…</strong></div>
+              <div><span>Session</span><strong id="runtime-session">Loading…</strong></div>
+              <div><span>Model</span><strong id="runtime-model">Loading…</strong></div>
             </div>
             <div id="event-filters" class="event-filters" role="tablist" hidden>
               <button class="event-filter active" type="button" data-filter="all">All</button>
@@ -277,6 +334,7 @@
     </div>
 
     <script src="/ui-assets/markdown-it-15.0.2.min.js" defer></script>
-    <script src="/ui-assets/app.js?v=5" defer></script>
+    <script src="/ui-assets/conversations.js?v=1" defer></script>
+    <script src="/ui-assets/app.js?v=8" defer></script>
   </body>
 </html>
