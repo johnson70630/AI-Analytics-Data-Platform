@@ -1,0 +1,8 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "dataops_investigation": "./agent/investigation/studio.py:graph"
+  },
+  "env": "./.env",
+  "python_version": "3.12"
+}

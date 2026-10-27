@@ -197,3 +197,6 @@ local_agent_sessions.db-*
 # Agent Bricks local dev artifacts (`agentbricks dev`)
 .agentbricks/
 app.agentbricksdev.yaml
+
+# LangGraph local development runtime state (`langgraph dev`)
+.langgraph_api/

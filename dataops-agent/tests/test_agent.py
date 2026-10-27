@@ -74,9 +74,16 @@ async def test_dataops_grounding_prompt_is_wired(monkeypatch):
     assert "available evidence does not identify the cause" in prompt
     assert "WARN as an anomaly" in prompt
     assert "successful Lakeflow run does not prove" in prompt
-    assert "Jobs API tool for Lakeflow execution health" in prompt
-    assert "fixed-SQL observability tool for the latest deterministic" in prompt
+    assert "Jobs API tool for narrow Lakeflow execution" in prompt
+    assert "fixed-SQL observability tool for narrow questions" in prompt
     assert "Genie observability tool for flexible historical" in prompt
+    assert "generate_dataops_investigation_report for full incident investigations" in prompt
+    assert "Avoid redundant individual tool calls" in prompt
+    assert "unavailable or partial investigation evidence as healthy" in prompt
+    assert "WARN anomalies, execution failures, missing evidence" in prompt
+    assert "cannot repair incidents or inspect unsupported logs" in prompt
+    assert "Treat truncated Genie results as partial evidence" in prompt
+    assert "do not describe a truncated result set as fully available" in prompt
     assert "do not invent underlying rows" in prompt
     assert "unavailable Genie query result as zero rows or zero anomalies" in prompt
     assert "Do not claim that you can inspect logs" in prompt
