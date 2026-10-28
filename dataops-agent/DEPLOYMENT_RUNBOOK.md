@@ -36,7 +36,7 @@ jobs, schedules, email resources, or another Genie Agent or SQL Warehouse.
 
 ## Stage 1: provision without user traffic
 
-From the release worktree:
+From the release worktree's `dataops-agent/` directory:
 
 ```bash
 agentbricks --profile ai-analytics-dev deploy dataops-agent --source . --instances 1 --no-wait
