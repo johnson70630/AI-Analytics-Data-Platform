@@ -1,8 +1,7 @@
-# LangGraph Chat App Overlay
+# DataOps AI Command Center UI
 
-`agentbricks init --framework langgraph` copies this framework-specific overlay after the base
-`agent-langgraph` template (it is included by default; `--disable-chat-app` opts out). It is
-intentionally not a post-generation mutation command.
+This project keeps the Agent Bricks-compatible zero-build UI as a thin overlay on the managed
+LangGraph runtime. Frontend code does not duplicate agent, tool, session, or authorization logic.
 
 ## Installed files
 
