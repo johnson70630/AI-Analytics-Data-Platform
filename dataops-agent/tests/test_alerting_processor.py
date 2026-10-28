@@ -281,7 +281,7 @@ async def test_investigation_failure_still_creates_fact_only_outbox_record():
     payload = result.outbox_records[0].payload
     assert payload.investigation_completeness == "unavailable"
     assert payload.recommendations == []
-    assert payload.source_errors == ["investigation:TimeoutError: bounded investigation timeout"]
+    assert payload.source_errors == ["investigation:TimeoutError: evidence unavailable"]
 
 
 @pytest.mark.asyncio

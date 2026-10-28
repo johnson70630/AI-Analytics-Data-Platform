@@ -171,7 +171,10 @@ WHEN MATCHED AND target.committed = FALSE THEN UPDATE SET
   last_error = NULL,
   created_at = CAST(:created_at AS TIMESTAMP),
   updated_at = CAST(:updated_at AS TIMESTAMP),
-  sent_at = NULL
+  sent_at = NULL,
+  provider_name = NULL,
+  provider_message_id = NULL,
+  provider_status = NULL
 WHEN NOT MATCHED THEN INSERT (
   notification_id, episode_id, checkpoint_name, checkpoint_version, transition_id, committed,
   event_type, status, payload_json, attempt_count,
@@ -269,7 +272,8 @@ THEN UPDATE SET
 _SELECT_CLAIMED_OUTBOX = f"""
 SELECT notification_id, episode_id, event_type, status, payload_json, attempt_count,
        max_attempts, available_at, claimed_by, claim_token, lease_expires_at,
-       last_error, created_at, updated_at, sent_at
+       last_error, created_at, updated_at, sent_at,
+       provider_name, provider_message_id, provider_status
 FROM {OUTBOX_TABLE}
 WHERE claim_token = :claim_token AND claimed_by = :worker_id AND status = 'CLAIMED'
 ORDER BY notification_id
@@ -278,6 +282,8 @@ ORDER BY notification_id
 _MARK_OUTBOX_SENT = f"""
 UPDATE {OUTBOX_TABLE}
 SET status = 'SENT', sent_at = CAST(:sent_at AS TIMESTAMP),
+    provider_name = :provider_name, provider_message_id = :provider_message_id,
+    provider_status = :provider_status,
     claimed_by = NULL, claim_token = NULL, lease_expires_at = NULL,
     updated_at = CAST(:sent_at AS TIMESTAMP)
 WHERE notification_id = :notification_id AND claim_token = :claim_token AND status = 'CLAIMED'
@@ -286,7 +292,10 @@ WHERE notification_id = :notification_id AND claim_token = :claim_token AND stat
 
 _MARK_OUTBOX_FAILED = f"""
 UPDATE {OUTBOX_TABLE}
-SET status = CASE WHEN attempt_count < max_attempts THEN 'RETRYABLE' ELSE 'FAILED' END,
+SET status = CASE
+      WHEN CAST(:retryable AS BOOLEAN) AND attempt_count < max_attempts THEN 'RETRYABLE'
+      ELSE 'FAILED'
+    END,
     available_at = CAST(:retry_at AS TIMESTAMP), last_error = :error,
     claimed_by = NULL, claim_token = NULL, lease_expires_at = NULL,
     updated_at = CAST(:failed_at AS TIMESTAMP)
@@ -297,7 +306,8 @@ WHERE notification_id = :notification_id AND claim_token = :claim_token AND stat
 _SELECT_OUTBOX_BY_ID = f"""
 SELECT notification_id, episode_id, event_type, status, payload_json, attempt_count,
        max_attempts, available_at, claimed_by, claim_token, lease_expires_at,
-       last_error, created_at, updated_at, sent_at
+       last_error, created_at, updated_at, sent_at,
+       provider_name, provider_message_id, provider_status
 FROM {OUTBOX_TABLE}
 WHERE notification_id = :notification_id
 LIMIT 1
@@ -724,6 +734,9 @@ class DeltaIncidentRegistry(DurableIncidentRegistry):
         notification_id: str,
         claim_token: str,
         sent_at: datetime,
+        provider_name: str | None = None,
+        provider_message_id: str | None = None,
+        provider_status: str | None = None,
     ) -> None:
         self._require_writes()
         result = self._executor.execute(
@@ -733,6 +746,9 @@ class DeltaIncidentRegistry(DurableIncidentRegistry):
                 "notification_id": notification_id,
                 "claim_token": claim_token,
                 "sent_at": sent_at,
+                "provider_name": provider_name,
+                "provider_message_id": provider_message_id,
+                "provider_status": provider_status,
             },
         )
         if result.affected_row_count == 0:
@@ -754,6 +770,7 @@ class DeltaIncidentRegistry(DurableIncidentRegistry):
         error: str,
         failed_at: datetime,
         retry_at: datetime,
+        retryable: bool,
     ) -> NotificationOutboxRecord:
         self._require_writes()
         update = self._executor.execute(
@@ -765,6 +782,7 @@ class DeltaIncidentRegistry(DurableIncidentRegistry):
                 "error": error,
                 "failed_at": failed_at,
                 "retry_at": retry_at,
+                "retryable": retryable,
             },
         )
         if update.affected_row_count == 0:
@@ -799,4 +817,7 @@ class DeltaIncidentRegistry(DurableIncidentRegistry):
             created_at=_parse_timestamp(row["created_at"]),
             updated_at=_parse_timestamp(row["updated_at"]),
             sent_at=_parse_timestamp(row.get("sent_at")),
+            provider_name=row.get("provider_name"),
+            provider_message_id=row.get("provider_message_id"),
+            provider_status=row.get("provider_status"),
         )

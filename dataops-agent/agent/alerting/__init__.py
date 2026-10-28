@@ -7,7 +7,19 @@ from agent.alerting.delta_repository import (
     FixedStatementExecutor,
     SqlExecutionResult,
 )
-from agent.alerting.delivery import IncidentNotificationDelivery, notification_candidates
+from agent.alerting.delivery import (
+    EmailDeliveryConfig,
+    EmailDeliveryError,
+    EmailDeliveryReceipt,
+    EmailSender,
+    IncidentNotificationDelivery,
+    MockEmailSender,
+    PermanentEmailDeliveryError,
+    RenderedEmail,
+    RetryableEmailDeliveryError,
+    notification_candidates,
+    render_notification_email,
+)
 from agent.alerting.detection import (
     assess_observability_association,
     detect_execution_observations,
@@ -34,7 +46,6 @@ from agent.alerting.models import (
 )
 from agent.alerting.outbox import (
     InMemoryNotificationOutboxRepository,
-    MockEmailSender,
     build_email_payload,
     build_outbox_record,
     deliver_notifications,
@@ -50,6 +61,7 @@ from agent.alerting.repository import (
     InMemoryIncidentStateRepository,
 )
 from agent.alerting.service import apply_detection, run_alerting_dry_run
+from agent.alerting.ses import SesEmailSender, SesV2Client
 
 __all__ = [
     "AlertDecision",
@@ -60,6 +72,10 @@ __all__ = [
     "DetectionResult",
     "DeliveryRunResult",
     "DryRunReport",
+    "EmailDeliveryConfig",
+    "EmailDeliveryError",
+    "EmailDeliveryReceipt",
+    "EmailSender",
     "DurableIncidentRegistry",
     "EvidenceAssociation",
     "FixedStatementExecutor",
@@ -76,8 +92,13 @@ __all__ = [
     "MockEmailSender",
     "MonitoringObservation",
     "NotificationOutboxRecord",
+    "PermanentEmailDeliveryError",
+    "RenderedEmail",
+    "RetryableEmailDeliveryError",
     "RunCursor",
     "SqlExecutionResult",
+    "SesEmailSender",
+    "SesV2Client",
     "TransitionResult",
     "apply_detection",
     "assess_observability_association",
@@ -92,6 +113,7 @@ __all__ = [
     "incident_fingerprint",
     "notification_identity",
     "notification_candidates",
+    "render_notification_email",
     "process_incidents",
     "run_alerting_dry_run",
     "transition_lifecycle",

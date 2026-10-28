@@ -363,6 +363,35 @@ def test_outbox_claim_is_bounded_and_requires_committed_checkpoint():
         )
 
 
+def test_mark_sent_persists_sanitized_provider_acceptance_metadata():
+    class ReceiptExecutor:
+        def __init__(self):
+            self.calls = []
+
+        def execute(self, *, name, statement, parameters):
+            self.calls.append({"name": name, "statement": statement, "parameters": parameters})
+            return SqlExecutionResult(rows=[], affected_row_count=1)
+
+    executor = ReceiptExecutor()
+    registry = DeltaIncidentRegistry(executor, write_enabled=True, clock=lambda: NOW)
+
+    registry.mark_sent(
+        notification_id="a" * 64,
+        claim_token="claim-token",
+        sent_at=NOW,
+        provider_name="ses",
+        provider_message_id="ses-message-123",
+        provider_status="accepted",
+    )
+
+    call = executor.calls[0]
+    assert call["name"] == "mark_outbox_sent"
+    assert "provider_message_id = :provider_message_id" in call["statement"]
+    assert call["parameters"]["provider_name"] == "ses"
+    assert call["parameters"]["provider_message_id"] == "ses-message-123"
+    assert call["parameters"]["provider_status"] == "accepted"
+
+
 def test_migration_defines_all_tables_and_non_enforced_identifiers():
     migration = (
         Path(__file__).parents[1]
@@ -402,3 +431,16 @@ def test_development_migration_is_isolated_and_contains_no_grants():
     assert "CREATE SCHEMA IF NOT EXISTS ai_analytics.dataops_alerting_dev" in migration
     assert "ai_analytics.dataops_alerting." not in migration
     assert "GRANT " not in migration.upper()
+
+
+def test_delivery_receipt_upgrades_are_separated_and_never_auto_executed():
+    migration_dir = Path(__file__).parents[1] / "agent" / "alerting" / "migrations"
+    development = (migration_dir / "002_add_notification_delivery_receipt_dev.sql").read_text()
+    production = (migration_dir / "003_add_notification_delivery_receipt.sql").read_text()
+
+    assert "ai_analytics.dataops_alerting_dev.notification_outbox" in development
+    assert "ai_analytics.dataops_alerting.notification_outbox" not in development
+    assert "ai_analytics.dataops_alerting.notification_outbox" in production
+    assert "production migration approval" in production
+    assert "provider_message_id STRING" in development
+    assert "provider_message_id STRING" in production

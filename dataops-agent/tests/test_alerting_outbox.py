@@ -116,7 +116,14 @@ def test_mock_email_failure_becomes_retryable_then_sent():
     assert too_early.claimed_count == 0
     assert sent.sent_count == 1
     assert repository.records[item.notification_id].status == "SENT"
-    assert len(sender.sent_payloads) == 1
+    assert repository.records[item.notification_id].provider_name == "mock"
+    assert repository.records[item.notification_id].provider_status == "accepted"
+    assert repository.records[item.notification_id].provider_message_id == (
+        f"mock-{item.notification_id}"
+    )
+    assert len(sender.sent_messages) == 1
+    assert sender.sent_messages[0].notification_id == item.notification_id
+    assert "DATAOPS INCIDENT NOTIFICATION" in sender.sent_messages[0].text_body
 
 
 def test_bounded_mock_failures_end_in_terminal_failed_state():
@@ -150,7 +157,7 @@ def test_bounded_mock_failures_end_in_terminal_failed_state():
     assert second.attempts[0].status == "FAILED"
     assert third.claimed_count == 0
     assert repository.records[item.notification_id].attempt_count == 2
-    assert sender.sent_payloads == []
+    assert sender.sent_messages == []
 
 
 def test_successful_delivery_is_not_claimed_again_but_not_claimed_as_exactly_once():

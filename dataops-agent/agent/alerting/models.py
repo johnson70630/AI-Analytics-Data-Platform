@@ -26,6 +26,7 @@ AlertDecisionType = Literal[
 BaselineMode = Literal["suppress_existing", "process_existing"]
 NotificationStatus = Literal["PENDING", "CLAIMED", "SENT", "FAILED", "RETRYABLE"]
 NotificationEventType = Literal["NEW", "RECURRING", "RESOLVED"]
+ProviderDeliveryStatus = Literal["accepted"]
 
 
 class StrictModel(BaseModel):
@@ -265,6 +266,13 @@ class EmailGenieFinding(StrictModel):
     answer: str | None
 
 
+class EmailEvidenceAssessment(StrictModel):
+    """Bounded root-cause or impact statement carried into a notification."""
+
+    status: Literal["unknown", "supported"] = "unknown"
+    explanation: str
+
+
 class NotificationEmailPayload(StrictModel):
     """Bounded email content; deliberately excludes raw report JSON and query rows."""
 
@@ -277,6 +285,22 @@ class NotificationEmailPayload(StrictModel):
     recommendations: list[EmailRecommendation]
     evidence_references: list[str]
     source_errors: list[str]
+    severity: Literal["critical", "warning", "resolved", "unknown"] = "unknown"
+    incident_status: str = "UNKNOWN"
+    observed_evidence: list[str] = Field(default_factory=list)
+    monitoring_execution_timestamps: list[str] = Field(default_factory=list)
+    monitoring_reference_timestamps: list[str] = Field(default_factory=list)
+    synthetic_activity_dates: dict[str, list[str]] = Field(default_factory=dict)
+    root_cause: EmailEvidenceAssessment = Field(
+        default_factory=lambda: EmailEvidenceAssessment(
+            explanation="The available evidence does not identify the root cause."
+        )
+    )
+    impact: EmailEvidenceAssessment = Field(
+        default_factory=lambda: EmailEvidenceAssessment(
+            explanation="The available evidence does not quantify the impact."
+        )
+    )
 
 
 class NotificationOutboxRecord(StrictModel):
@@ -295,6 +319,9 @@ class NotificationOutboxRecord(StrictModel):
     created_at: datetime
     updated_at: datetime
     sent_at: datetime | None = None
+    provider_name: str | None = None
+    provider_message_id: str | None = None
+    provider_status: ProviderDeliveryStatus | None = None
 
     @field_validator("available_at", "created_at", "updated_at")
     @classmethod
@@ -329,6 +356,9 @@ class DeliveryAttempt(StrictModel):
     notification_id: str
     status: NotificationStatus
     error: str | None = None
+    provider_name: str | None = None
+    provider_message_id: str | None = None
+    provider_status: ProviderDeliveryStatus | None = None
 
 
 class DeliveryRunResult(StrictModel):

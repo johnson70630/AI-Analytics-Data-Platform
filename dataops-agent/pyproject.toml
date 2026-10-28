@@ -14,6 +14,7 @@ dependencies = [
     "mcp<2",  # langchain-mcp-adapters 0.3.x uses the MCP 1.x API.
     "uvicorn>=0.41.0",
     "python-dotenv>=1.2.1",
+    "boto3>=1.43.118,<2",
     "databricks-sdk>=0.124.0",
     "databricks-agents>=1.9.3",
 ]
