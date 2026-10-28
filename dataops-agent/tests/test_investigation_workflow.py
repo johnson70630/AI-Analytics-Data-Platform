@@ -13,6 +13,7 @@ from agent.investigation import workflow
 from agent.investigation import (
     InvestigationDependencies,
     InvestigationReportV1,
+    InvestigationReportV11,
     build_investigation_graph,
     run_investigation,
 )
@@ -185,12 +186,14 @@ async def test_healthy_pipeline_and_monitoring_skip_genie():
     state = await invoke(dependencies(jobs, observability, genie=genie))
     report = state["report"]
 
-    assert report["schema_version"] == "1.0"
+    assert report["schema_version"] == "1.1"
     assert report["investigation_completeness"] == "complete"
     assert report["pipeline_execution_health"]["status"] == "PASS"
     assert report["monitoring_health"]["status"] == "PASS"
     assert report["detected_issues"] == []
     assert report["genie_findings"] == []
+    assert report["recommendations"] == []
+    assert report["recommendation_summary"]["status"] == "no_findings"
     assert report["genie_routing"]["reason"] == "no_anomalies"
     assert report["source_availability"]["genie"] == {
         "available": False,
@@ -202,6 +205,7 @@ async def test_healthy_pipeline_and_monitoring_skip_genie():
         "collect_observability",
         "join_evidence",
         "evaluate_issues",
+        "generate_recommendations",
         "construct_report",
     ]
 
@@ -225,8 +229,9 @@ async def test_pipeline_success_quality_warn_routes_to_genie():
     assert "synthetic metric date '2026-10-24'" in genie.questions[0]
     assert report["genie_routing"]["selected_count"] == 1
     assert report["genie_findings"][0]["status"] == "complete"
-    assert report["workflow"]["path"][-2:] == [
+    assert report["workflow"]["path"][-3:] == [
         "investigate_with_genie",
+        "generate_recommendations",
         "construct_report",
     ]
 
@@ -283,6 +288,14 @@ async def test_pipeline_failure_does_not_hide_available_monitoring():
     assert report["pipeline_execution_health"]["pipeline_failed"] is True
     assert report["monitoring_health"]["status"] == "PASS"
     assert report["genie_routing"]["reason"] == "no_supported_anomalies"
+    execution_diagnostic = next(
+        item
+        for item in report["recommendations"]
+        if item["issue_id"].startswith("jobs.execution")
+        and item["category"] == "diagnostic"
+    )
+    assert execution_diagnostic["priority"] == "P0"
+    assert "unsupported logs" not in execution_diagnostic["action"].lower()
 
 
 @pytest.mark.asyncio
@@ -495,8 +508,8 @@ async def test_report_schema_validation_and_timestamp_distinctions():
         )
     )
 
-    validated = InvestigationReportV1.model_validate(report)
-    assert validated.schema_version == "1.0"
+    validated = InvestigationReportV11.model_validate(report)
+    assert validated.schema_version == "1.1"
     assert validated.generated_at == GENERATED_AT
     assert validated.monitoring_health.monitoring_execution_timestamps == [
         "2026-10-25T08:18:00Z"
@@ -511,7 +524,15 @@ async def test_report_schema_validation_and_timestamp_distinctions():
     }
     invalid = {**report, "schema_version": "2.0"}
     with pytest.raises(ValidationError):
-        InvestigationReportV1.model_validate(invalid)
+        InvestigationReportV11.model_validate(invalid)
+
+    legacy_payload = {
+        key: value
+        for key, value in report.items()
+        if key not in {"recommendations", "recommendation_summary"}
+    }
+    legacy_payload["schema_version"] = "1.0"
+    assert InvestigationReportV1.model_validate(legacy_payload).schema_version == "1.0"
 
 
 @pytest.mark.asyncio
@@ -543,6 +564,7 @@ async def test_graph_exposes_only_bounded_read_only_dependencies():
         "join_evidence",
         "evaluate_issues",
         "investigate_with_genie",
+        "generate_recommendations",
         "construct_report",
         "__end__",
     }
