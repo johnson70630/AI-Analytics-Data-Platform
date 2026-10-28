@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from agent.investigation import InvestigationReportV1
+from agent.investigation import InvestigationReportV1, InvestigationReportV11
 from agent.tools import all_tools
 from agent.tools.investigation import (
     fetch_dataops_investigation_report,
@@ -203,6 +203,30 @@ def unavailable_report() -> dict:
     return report
 
 
+def recommendation_report() -> dict:
+    report = complete_report()
+    report["schema_version"] = "1.1"
+    report["recommendations"] = [
+        {
+            "issue_id": "observability.quality.messages-missing-message-text-rate",
+            "priority": "P1",
+            "category": "diagnostic",
+            "action": "Compare the retrieved metric with its historical baseline.",
+            "rationale": "The latest monitored metric returned WARN.",
+            "evidence_refs": ["detected_issues[0]"],
+            "requires_human_approval": False,
+            "verification_steps": ["Record the comparison against cited evidence."],
+        }
+    ]
+    report["recommendation_summary"] = {
+        "status": "generated",
+        "recommendation_count": 1,
+        "unsupported_issue_count": 0,
+        "message": "One diagnostic recommendation was generated.",
+    }
+    return report
+
+
 def test_auto_discovery_finds_composite_once_and_preserves_v1_tools():
     tools = all_tools()
     names = [item.name for item in tools]
@@ -222,6 +246,7 @@ def test_auto_discovery_finds_composite_once_and_preserves_v1_tools():
         (complete_report, "complete"),
         (partial_report, "partial"),
         (unavailable_report, "unavailable"),
+        (recommendation_report, "complete"),
     ],
 )
 async def test_service_validates_complete_partial_and_unavailable_reports(
@@ -235,7 +260,10 @@ async def test_service_validates_complete_partial_and_unavailable_reports(
 
     result = await fetch_dataops_investigation_report(runner=runner)
 
-    assert InvestigationReportV1.model_validate(result)
+    if result["schema_version"] == "1.0":
+        assert InvestigationReportV1.model_validate(result)
+    else:
+        assert InvestigationReportV11.model_validate(result)
     assert result["investigation_completeness"] == expected_completeness
     assert result["generated_at"] == "2026-10-26T16:30:00Z"
 
@@ -306,6 +334,8 @@ def test_composite_tool_has_no_write_or_administrative_surface():
     assert "does not prove root cause" in description
     assert "overall platform health" in description
     assert "without adding hypotheses" in description
+    assert "require human approval" in description
+    assert "never executed by this tool" in description
     assert generate_dataops_investigation_report.name not in {
         "write",
         "repair",

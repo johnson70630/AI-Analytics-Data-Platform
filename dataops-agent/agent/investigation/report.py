@@ -76,6 +76,26 @@ class GenieFindingReport(StrictReportModel):
     impact: EvidenceAssessment
 
 
+class Recommendation(StrictReportModel):
+    """A read-only proposed action grounded in report evidence references."""
+
+    issue_id: str
+    priority: Literal["P0", "P1", "P2", "P3"]
+    category: Literal["diagnostic", "proposed_remediation", "verification"]
+    action: str
+    rationale: str
+    evidence_refs: list[str] = Field(min_length=1)
+    requires_human_approval: bool
+    verification_steps: list[str] = Field(min_length=1)
+
+
+class RecommendationSummary(StrictReportModel):
+    status: Literal["generated", "no_findings", "no_supported_recommendation"]
+    recommendation_count: int = Field(ge=0)
+    unsupported_issue_count: int = Field(ge=0)
+    message: str
+
+
 class InvestigationReportV1(StrictReportModel):
     """Stable output contract for the V2.1 investigation workflow."""
 
@@ -111,3 +131,11 @@ class InvestigationReportV1(StrictReportModel):
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("generated_at must be timezone-aware")
         return value
+
+
+class InvestigationReportV11(InvestigationReportV1):
+    """Additive V1.1 contract with deterministic recommendations."""
+
+    schema_version: Literal["1.1"] = "1.1"
+    recommendations: list[Recommendation]
+    recommendation_summary: RecommendationSummary

@@ -11,7 +11,8 @@ from typing import Any, Literal
 from databricks.sdk import WorkspaceClient
 from langgraph.graph import END, START, StateGraph
 
-from agent.investigation.report import InvestigationReportV1
+from agent.investigation.recommendations import build_recommendations
+from agent.investigation.report import InvestigationReportV11
 from agent.investigation.state import (
     DataHealth,
     ExecutionHealth,
@@ -412,10 +413,10 @@ def _select_genie_investigations(
 
 def route_after_evaluation(
     state: InvestigationState,
-) -> Literal["investigate_with_genie", "construct_report"]:
+) -> Literal["investigate_with_genie", "generate_recommendations"]:
     if state.get("genie_requests"):
         return "investigate_with_genie"
-    return "construct_report"
+    return "generate_recommendations"
 
 
 def _genie_finding(
@@ -619,6 +620,14 @@ def build_investigation_graph(dependencies: InvestigationDependencies | None = N
             "workflow_path": [*state["workflow_path"], "investigate_with_genie"],
         }
 
+    def generate_recommendations(state: InvestigationState) -> InvestigationState:
+        recommendations, summary = build_recommendations(state)
+        return {
+            "recommendations": recommendations,
+            "recommendation_summary": summary,
+            "workflow_path": [*state["workflow_path"], "generate_recommendations"],
+        }
+
     def construct_report(state: InvestigationState) -> InvestigationState:
         jobs_available = state.get("jobs_evidence") is not None
         observability_available = state.get("observability_evidence") is not None
@@ -639,7 +648,7 @@ def build_investigation_graph(dependencies: InvestigationDependencies | None = N
         execution_health = state.get("execution_health") or _unavailable_execution_health()
         data_health = state.get("data_health") or _unavailable_data_health()
         path = [*state.get("workflow_path", []), "construct_report"]
-        report = InvestigationReportV1(
+        report = InvestigationReportV11(
             generated_at=deps.clock(),
             source_availability={
                 "jobs": {
@@ -683,6 +692,8 @@ def build_investigation_graph(dependencies: InvestigationDependencies | None = N
                 "genie": findings,
             },
             source_references=_source_references(state),
+            recommendations=state.get("recommendations", []),
+            recommendation_summary=state["recommendation_summary"],
             workflow={"path": path},
         ).model_dump(mode="json")
         return {"errors": errors, "workflow_path": path, "report": report}
@@ -693,6 +704,7 @@ def build_investigation_graph(dependencies: InvestigationDependencies | None = N
     builder.add_node("join_evidence", join_evidence)
     builder.add_node("evaluate_issues", evaluate_issues)
     builder.add_node("investigate_with_genie", investigate_with_genie)
+    builder.add_node("generate_recommendations", generate_recommendations)
     builder.add_node("construct_report", construct_report)
     builder.add_edge(START, "collect_jobs")
     builder.add_edge(START, "collect_observability")
@@ -703,10 +715,11 @@ def build_investigation_graph(dependencies: InvestigationDependencies | None = N
         route_after_evaluation,
         {
             "investigate_with_genie": "investigate_with_genie",
-            "construct_report": "construct_report",
+            "generate_recommendations": "generate_recommendations",
         },
     )
-    builder.add_edge("investigate_with_genie", "construct_report")
+    builder.add_edge("investigate_with_genie", "generate_recommendations")
+    builder.add_edge("generate_recommendations", "construct_report")
     builder.add_edge("construct_report", END)
     return builder.compile()
 

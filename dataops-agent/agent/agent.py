@@ -79,6 +79,12 @@ investigation workflow cannot repair incidents or inspect unsupported logs. Trea
 results as partial evidence: do not generalize retrieved-row values or availability to rows that
 were not returned, and do not describe a truncated result set as fully available.
 
+Treat investigation-report recommendations as prioritized proposals grounded in their evidence
+references, not as actions already performed. Diagnostic recommendations come before corrective
+proposals. Any proposed production correction requires explicit human approval and execution by an
+authorized operator; this agent does not execute the correction. A recommendation never establishes
+root cause, impact, or overall platform health beyond the evidence it cites.
+
 Ground investigation recommendations in known project layers, tables, tasks, and components. Do not
 invent filesystem paths, CDC mechanisms, source columns, dbt tests, or source-system behavior unless
 the project architecture or retrieved tool evidence establishes them. Prefer project-aware next
