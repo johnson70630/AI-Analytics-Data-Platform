@@ -40,11 +40,9 @@ from databricks_agentkit.runtime.tool_manifest import resolve_model_service
 # change.
 MODEL = resolve_model_service() or "system.ai.gpt-oss-120b"
 
-# Tools that require human approval before they run. Map a tool name to True to allow every decision
-# (approve / edit / reject / respond), or to a config dict to restrict them (see HumanInTheLoopMiddleware).
-# When a listed tool is about to run, the agent pauses and emits an `interrupt` event; the client
-# resumes by sending `resume` with the same session id. Empty this dict to disable approval gating.
-REQUIRE_APPROVAL = {"send_message": True}
+# No deployed DataOps tool performs writes. Keep the approval middleware integration available for a
+# future explicitly authorized action tool, but do not gate or imply any capability today.
+REQUIRE_APPROVAL: dict[str, bool | dict[str, Any]] = {}
 
 
 DATAOPS_SYSTEM_PROMPT = """You are a read-only DataOps assistant for the AI Analytics Data Platform.

@@ -1,8 +1,13 @@
-# LangGraph agent template
+# DataOps AI Agent
 
-A LangGraph agent served by `databricks_agentkit.DurableAgentServer`. The managed runtime keeps invocation state and events in
-memory during `agentbricks dev`. Deployment attaches a persistent Runtime Store, so invocation state and
-events survive process loss and interrupted work can be recovered.
+A read-only DataOps assistant for the AI Analytics Data Platform, implemented with LangGraph and
+served by `databricks_agentkit.DurableAgentServer`. It investigates Lakeflow execution and governed
+observability evidence without exposing arbitrary SQL, job control, repair, backfill, or alert
+delivery capabilities.
+
+During `agentbricks dev`, invocation state and events are process-local. Deployment attaches the
+configured Runtime, Session, and Memory stores so the managed application can provide durable
+invocations and conversation state according to the Agent Bricks runtime contract.
 
 The generated project separates portable agent execution from the managed HTTP protocol:
 
@@ -15,10 +20,20 @@ client -> runtime/main.py -> runtime/adapter.py -> agent/agent.py:run_agent
   `invoke` and `recover`.
 - `runtime/main.py` constructs the server and registers those hooks.
 
-To bring an existing LangGraph agent, run `agentbricks init --framework langgraph --existing .` in its
-project and follow the generated prompt in your coding agent. The migration skill and this template share
-[AGENTKIT_CONTRACT.md](AGENTKIT_CONTRACT.md), which owns integration requirements. This README owns
-configuration and client examples; [AGENTS.md](AGENTS.md) provides the development map.
+[AGENTKIT_CONTRACT.md](AGENTKIT_CONTRACT.md) owns runtime integration requirements, while
+[AGENTS.md](AGENTS.md) provides the development map.
+
+## Validated capabilities
+
+The automatically discovered LangChain tools are:
+
+- `get_latest_pipeline_run` for narrow Lakeflow execution-health questions.
+- `get_latest_observability_summary` for the latest deterministic observability snapshot.
+- `ask_genie_observability` for flexible historical observability questions.
+- `generate_dataops_investigation_report` for the full V2.2 investigation and recommendation flow.
+
+The V2.3A/B incident lifecycle and Delta outbox are standalone libraries. They are not registered as
+agent tools, are not scheduled, and have no live email provider on this deployable branch.
 
 ## Run locally
 
@@ -41,7 +56,7 @@ INVOCATION_ID=$(uuidgen)
 
 curl -sS http://localhost:8000/api/invocations \
   -H 'Content-Type: application/json' \
-  -d "{\"id\":\"$INVOCATION_ID\",\"session_id\":\"$SESSION_ID\",\"input\":{\"messages\":[{\"role\":\"user\",\"content\":\"What time is it? Use your tool.\"}]}}"
+  -d "{\"id\":\"$INVOCATION_ID\",\"session_id\":\"$SESSION_ID\",\"input\":{\"messages\":[{\"role\":\"user\",\"content\":\"Did the latest Lakeflow pipeline succeed?\"}]}}"
 ```
 
 Reuse `SESSION_ID` for multi-turn conversation state. Generate a new `INVOCATION_ID` for each turn.
@@ -99,35 +114,9 @@ and HITL `interrupt`s. Replay from a cursor with
 
 ## Human approval
 
-`send_message` is gated by `HumanInTheLoopMiddleware`. Start a turn asking the agent to use that
-tool. When the output or event stream contains an `interrupt`, submit a new invocation with the same
-application session:
-
-```json
-{
-  "id": "<new-uuid>",
-  "session_id": "<same-session-id>",
-  "input": {
-    "resume": {"decisions": [{"type": "approve"}]}
-  }
-}
-```
-
-For OBO tools (`auth = "user"`), the same signed-in user submits the approval as a new
-invocation. Keep the same `session_id` and, if supplied, `input.actor`. The new request supplies
-its own user credentials; the paused invocation's credentials are discarded. The browser normally
-uses its existing authenticated session, so approval does not require a page refresh or another
-login unless that session has expired. Automatic crash recovery still cannot recover OBO work.
-
-Malformed middleware decisions return `INVALID_APPROVAL` before the resume value is checkpointed,
-so the user can correct the decision and submit it with a new invocation ID.
-
-The default checkpointer is process-local. Bind a managed Session Store to preserve multi-turn and
-paused LangGraph state across restarts:
-
-```bash
-agentbricks sessions bind my-agent-sessions
-```
+The runtime and browser retain support for LangGraph approval interrupts, but no current DataOps
+tool performs a write or requires approval. Adding an action tool requires a separate security
+review, an explicit `REQUIRE_APPROVAL` entry, and tests covering authorization and replay behavior.
 
 ## Crash recovery
 
@@ -140,6 +129,23 @@ repeated side effects. See [Recovery and durability](AGENTKIT_CONTRACT.md#recove
 The browser UI is included by default. It generates a stable application session ID in local
 storage, sends it as the top-level `session_id`, and generates a fresh invocation UUID per turn.
 Use `agentbricks init --framework langgraph --disable-chat-app` for API-only output.
+
+## Deployment preparation
+
+Local development requires an authenticated Databricks profile plus:
+
+- `DATABRICKS_PIPELINE_JOB_ID` for the production-style Lakeflow Job inspected by the Jobs tool.
+- `DATABRICKS_SQL_WAREHOUSE_ID` for fixed observability queries.
+- `DATABRICKS_GENIE_AGENT_ID` for the validated observability Genie Agent.
+
+The deployed application uses the model, Memory Store, Session Store, and MLflow tracing bindings
+declared in `agent.toml`. Before deployment, confirm the application identity can read the target
+Lakeflow Job, use the SQL warehouse, select from `ai_analytics.observability`, and invoke the Genie
+Agent. Do not place workspace tokens in source or `app.yaml`.
+
+`langgraph.json`, `agent/investigation/studio.py`, and `langgraph-cli[inmem]` exist only for local
+LangGraph Studio development. Studio defaults `LANGSMITH_TRACING=false`; the deployed command in
+`app.yaml` does not start LangGraph Studio or require LangSmith cloud tracing.
 
 ## Configure and deploy
 
@@ -154,7 +160,7 @@ Use `agentbricks init --framework langgraph --disable-chat-app` for API-only out
   their flags may change between releases.
 
 ```bash
-agentbricks --profile <profile> deploy agent-langgraph --source .
+agentbricks --profile <profile> deploy dataops-agent --source .
 ```
 
 When deployment provisions a dedicated Runtime Store, only the app-owned

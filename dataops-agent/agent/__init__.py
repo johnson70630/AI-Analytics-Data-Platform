@@ -1,7 +1,5 @@
-from agent.tools.jobs import get_latest_pipeline_run
+"""DataOps Agent application package.
 
-
-def all_tools():
-    return [
-        get_latest_pipeline_run,
-    ]
+Tool discovery is owned exclusively by :mod:`agent.tools`; keeping this package initializer free of
+tool imports avoids a second, incomplete registry.
+"""

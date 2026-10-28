@@ -23,17 +23,24 @@ from databricks_agentkit.langgraph.session_store import (
 
 def test_tools_autoregister():
     tools = all_tools()
-    assert tools, "expected the sample tool to auto-register"
+    names = [tool.name for tool in tools]
     assert all(isinstance(t, BaseTool) for t in tools)
-    assert {"get_current_time", "send_message"} <= {t.name for t in tools}
+    assert set(names) == {
+        "ask_genie_observability",
+        "generate_dataops_investigation_report",
+        "get_latest_observability_summary",
+        "get_latest_pipeline_run",
+    }
+    assert len(names) == len(set(names))
 
 
-def test_gated_tool_is_in_require_approval():
-    # The gated demo tool must exist and be listed for approval, or the HITL demo does nothing.
+def test_deployed_tool_inventory_is_read_only_and_alerting_is_inactive():
     from agent.agent import REQUIRE_APPROVAL
 
-    assert REQUIRE_APPROVAL.get("send_message")
-    assert "send_message" in {t.name for t in all_tools()}
+    names = {tool.name for tool in all_tools()}
+    assert REQUIRE_APPROVAL == {}
+    assert not names.intersection({"send_message", "send_email", "repair_job", "run_job"})
+    assert all("alert" not in name for name in names)
 
 
 @pytest.mark.asyncio
@@ -115,7 +122,7 @@ async def _aiter(events):
 
 @pytest.mark.asyncio
 async def test_serialize_events_relays_interrupt_as_native_event():
-    hitl = {"action_requests": [{"name": "send_message", "args": {"recipient": "x", "body": "y"}}]}
+    hitl = {"action_requests": [{"name": "future_approved_tool", "args": {"value": "x"}}]}
     stream = _aiter([("updates", {"__interrupt__": (_FakeInterrupt(hitl, "int-1"),)})])
     events = [e async for e in _serialize_events(stream)]
     assert events == [{"type": "interrupt", "id": "int-1", "value": hitl}]
