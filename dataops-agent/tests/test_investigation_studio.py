@@ -170,6 +170,7 @@ def test_studio_graph_displays_all_nodes_and_conditional_edges():
         "join_evidence",
         "evaluate_issues",
         "investigate_with_genie",
+        "generate_recommendations",
         "construct_report",
         "__end__",
     }
@@ -179,8 +180,9 @@ def test_studio_graph_displays_all_nodes_and_conditional_edges():
     assert ("collect_jobs", "join_evidence", False) in edges
     assert ("collect_observability", "join_evidence", False) in edges
     assert ("evaluate_issues", "investigate_with_genie", True) in edges
-    assert ("evaluate_issues", "construct_report", True) in edges
-    assert ("investigate_with_genie", "construct_report", False) in edges
+    assert ("evaluate_issues", "generate_recommendations", True) in edges
+    assert ("investigate_with_genie", "generate_recommendations", False) in edges
+    assert ("generate_recommendations", "construct_report", False) in edges
 
 
 @pytest.mark.asyncio
@@ -218,12 +220,15 @@ async def test_studio_graph_streams_node_updates_with_offline_evidence():
         "join_evidence",
         "evaluate_issues",
         "investigate_with_genie",
+        "generate_recommendations",
         "construct_report",
     ]
     assert calls.count("jobs") == 2
     assert calls.count("observability") == 2
     assert calls.count("genie") == 2
     assert result["report"]["monitoring_health"]["status"] == "WARN"
+    assert result["report"]["schema_version"] == "1.1"
+    assert result["report"]["recommendations"]
     assert result["report"]["genie_routing"]["selected_count"] == 1
     assert result["report"]["source_errors"] == []
     assert result["report"]["investigation_completeness"] == "complete"

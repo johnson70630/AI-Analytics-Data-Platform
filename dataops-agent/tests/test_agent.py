@@ -84,6 +84,10 @@ async def test_dataops_grounding_prompt_is_wired(monkeypatch):
     assert "cannot repair incidents or inspect unsupported logs" in prompt
     assert "Treat truncated Genie results as partial evidence" in prompt
     assert "do not describe a truncated result set as fully available" in prompt
+    assert "recommendations as prioritized proposals" in prompt
+    assert "Diagnostic recommendations come before corrective proposals" in prompt
+    assert "requires explicit human approval" in prompt
+    assert "this agent does not execute the correction" in prompt
     assert "do not invent underlying rows" in prompt
     assert "unavailable Genie query result as zero rows or zero anomalies" in prompt
     assert "Do not claim that you can inspect logs" in prompt

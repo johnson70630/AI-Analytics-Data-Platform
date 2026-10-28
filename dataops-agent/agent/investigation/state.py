@@ -90,6 +90,32 @@ class GenieFinding(TypedDict):
     impact: dict[str, str]
 
 
+RecommendationPriority = Literal["P0", "P1", "P2", "P3"]
+RecommendationCategory = Literal["diagnostic", "proposed_remediation", "verification"]
+
+
+class RecommendationStateItem(TypedDict):
+    """One deterministic, evidence-referenced recommendation."""
+
+    issue_id: str
+    priority: RecommendationPriority
+    category: RecommendationCategory
+    action: str
+    rationale: str
+    evidence_refs: list[str]
+    requires_human_approval: bool
+    verification_steps: list[str]
+
+
+class RecommendationSummaryState(TypedDict):
+    """Describe whether this evidence supports any recommendations."""
+
+    status: Literal["generated", "no_findings", "no_supported_recommendation"]
+    recommendation_count: int
+    unsupported_issue_count: int
+    message: str
+
+
 class InvestigationState(TypedDict, total=False):
     """State shared by parallel evidence, evaluation, Genie, and report nodes."""
 
@@ -106,6 +132,8 @@ class InvestigationState(TypedDict, total=False):
     genie_findings: list[GenieFinding]
     genie_errors: list[InvestigationError]
     genie_route_reason: str
+    recommendations: list[RecommendationStateItem]
+    recommendation_summary: RecommendationSummaryState
     evaluation_status: Literal["completed", "skipped_no_evidence"]
     workflow_path: list[str]
     report: dict[str, Any]
