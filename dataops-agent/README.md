@@ -138,10 +138,13 @@ Local development requires an authenticated Databricks profile plus:
 - `DATABRICKS_SQL_WAREHOUSE_ID` for fixed observability queries.
 - `DATABRICKS_GENIE_AGENT_ID` for the validated observability Genie Agent.
 
-The deployed application uses the model, Memory Store, Session Store, and MLflow tracing bindings
-declared in `agent.toml`. Before deployment, confirm the application identity can read the target
-Lakeflow Job, use the SQL warehouse, select from `ai_analytics.observability`, and invoke the Genie
-Agent. Do not place workspace tokens in source or `app.yaml`.
+The deployed application uses the model-service, Session Store, and MLflow tracing bindings declared
+in `agent.toml`. Long-term Memory Store provisioning is intentionally deferred; the UI and agent
+gracefully keep memory disabled when no store is bound. Before deployment, confirm the application
+identity can read the target Lakeflow Job, use the SQL warehouse, select from
+`ai_analytics.observability`, invoke the Genie Agent, and execute the bound model service. Resource
+identifiers in `app.yaml` are non-secret deployment configuration. Do not place workspace tokens,
+OAuth credentials, or local profiles in source or `app.yaml`.
 
 `langgraph.json`, `agent/investigation/studio.py`, and `langgraph-cli[inmem]` exist only for local
 LangGraph Studio development. Studio defaults `LANGSMITH_TRACING=false`; the deployed command in

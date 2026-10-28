@@ -5,11 +5,12 @@ framework = "langgraph"
 server = "agentbricks"
 deployment_name = "dataops-agent"
 
-[memory_store]
-name = "dataops-agent-gkxczy-memory"
-
 [session_store]
 name = "dataops-agent-gkxczy-sessions"
 
 [tracing]
 experiment_name = "/Shared/agentbricks_traces/dataops-agent-gkxczy"
+
+[experimental.model_services.agent]
+name = "ai_analytics.default.dataops_agent_llm"
+default = "system.ai.gpt-oss-120b"

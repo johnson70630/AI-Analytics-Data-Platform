@@ -1,4 +1,11 @@
 command: ["uv", "run", "start-server"]
+env:
+  - name: DATABRICKS_PIPELINE_JOB_ID
+    value: "807892462186478"
+  - name: DATABRICKS_SQL_WAREHOUSE_ID
+    value: "08401a2b34023edc"
+  - name: DATABRICKS_GENIE_AGENT_ID
+    value: "01f1d0cfc8691413ad422631b434bdbb"
 # databricks apps listen by default on port 8000
 #
 # Agent Bricks injects the deployed Runtime Store endpoint. The LangGraph checkpointer remains
