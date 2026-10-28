@@ -194,8 +194,10 @@ local_agent_sessions.db
 local_agent_sessions.db-*
 *.db-journal
 
-# Agent Bricks local dev artifacts (`agentbricks dev`)
-.agentbricks/
+# Agent Bricks local dev artifacts (`agentbricks dev`). Keep only the validated scaffold
+# provenance required by `agentbricks doctor` and release builds.
+.agentbricks/*
+!.agentbricks/project.toml
 app.agentbricksdev.yaml
 
 # LangGraph local development runtime state (`langgraph dev`)
