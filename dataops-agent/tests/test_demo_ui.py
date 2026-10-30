@@ -173,11 +173,11 @@ def test_demo_ui_routes(monkeypatch):
     assert 'id="runtime-transport"' in index.text
     assert 'id="runtime-session"' in index.text
     assert 'id="runtime-model"' in index.text
-    assert 'styles.css?v=12' in index.text
+    assert 'styles.css?v=13' in index.text
     assert 'conversations.js?v=1' in index.text
-    assert 'investigation.js?v=2' in index.text
+    assert 'investigation.js?v=3' in index.text
     assert 'workspace.js?v=1' in index.text
-    assert 'app.js?v=12' in index.text
+    assert 'app.js?v=13' in index.text
     assert '<body data-workspace-view="chat">' in index.text
     assert 'id="health-review-view"' in index.text
     assert 'id="health-view-tab"' in index.text
@@ -202,6 +202,7 @@ def test_demo_ui_routes(monkeypatch):
     assert investigation_script.headers["cache-control"] == "no-store"
     assert "function validateReport(report)" in investigation_script.text
     assert "function canStart(" in investigation_script.text
+    assert "function recommendationDisplay(recommendation)" in investigation_script.text
     assert "function fullViewModel(report)" in investigation_script.text
     assert "function serializeRecoveryState(" in investigation_script.text
     assert "function parseRecoveryState(" in investigation_script.text
@@ -221,6 +222,9 @@ def test_demo_ui_routes(monkeypatch):
     assert "workspaceController.investigationActionState" in app_script.text
     assert 'setAttribute("aria-label", `${label}. ${explanation}`)' in app_script.text
     assert "function runFullInvestigation()" in app_script.text
+    assert 'recommendationSummary.textContent = "Recommendation details"' in app_script.text
+    assert 'evidenceSummary.textContent = "Evidence references"' in app_script.text
+    assert 'verificationSummary.textContent = "Technical and verification details"' in app_script.text
     assert 'action: elements.runFullInvestigation.dataset.investigationAction' in app_script.text
     assert 'background: true' in app_script.text
     assert "investigation.canStart" in app_script.text
@@ -308,6 +312,9 @@ def test_demo_ui_routes(monkeypatch):
     assert ".report-executive-grid" in styles
     assert ".report-card pre" in styles
     assert ".report-time-grid" in styles
+    assert ".recommendation-summary" in styles
+    assert ".investigation-recommendation summary:focus-visible" in styles
+    assert ".recommendation-evidence-refs" in styles
     assert 'grid-template-areas: "sidebar main"' in styles
     assert ".chat-panel[hidden],\n.health-review-view[hidden]" in styles
     assert "display: none !important" in styles
