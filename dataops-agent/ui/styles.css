@@ -3376,6 +3376,239 @@ body.evidence-open .event-card {
   color: var(--success);
 }
 
+.report-viewer-button {
+  margin-top: 14px;
+}
+
+.report-viewer {
+  margin-top: 12px;
+  padding: clamp(14px, 2.5vw, 24px);
+  border: 1px solid color-mix(in srgb, var(--purple) 34%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 97%, var(--purple) 3%);
+}
+
+.report-viewer[hidden] {
+  display: none;
+}
+
+.report-viewer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.report-viewer-head h2,
+.report-viewer-head p {
+  margin-bottom: 0;
+}
+
+.report-viewer-head > div {
+  min-width: 0;
+}
+
+.report-viewer-head #report-generated-at {
+  margin-top: 5px;
+  color: var(--ink-faint);
+}
+
+.report-section {
+  min-width: 0;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.report-section:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.report-executive-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.report-executive-grid article,
+.report-time-grid article,
+.report-assessment-grid article {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-muted);
+}
+
+.report-executive-grid span,
+.report-executive-grid strong {
+  display: block;
+}
+
+.report-executive-grid span {
+  color: var(--ink-faint);
+  font-size: 10px;
+}
+
+.report-executive-grid strong {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.report-source-availability {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.report-source-availability > div {
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.report-source-availability strong,
+.report-source-availability span {
+  display: block;
+}
+
+.report-source-availability strong {
+  text-transform: capitalize;
+}
+
+.report-source-availability span {
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
+.report-source-availability .source-available {
+  border-left: 2px solid var(--success);
+}
+
+.report-source-availability .source-unavailable {
+  border-left: 2px solid var(--danger);
+}
+
+.report-assessment-grid,
+.report-time-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.report-assessment-grid p {
+  margin: 5px 0 0;
+  color: var(--ink-soft);
+}
+
+.report-time-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.report-time-grid article > div {
+  display: grid;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.report-time-grid code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--purple);
+}
+
+.report-card-list,
+.report-evidence-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.report-card,
+.report-recommendation-group,
+.report-evidence-list > details {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-muted);
+}
+
+.report-card > p {
+  margin: 7px 0;
+}
+
+.report-meta,
+.report-unavailable {
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+
+.report-question {
+  color: var(--purple);
+  font-weight: 600;
+}
+
+.report-warning {
+  padding: 7px 9px;
+  border-left: 2px solid var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.report-card summary,
+.report-evidence-list summary,
+.report-query summary {
+  cursor: pointer;
+  color: var(--accent-deep);
+}
+
+.report-card pre,
+.report-evidence-list pre,
+.report-query pre {
+  max-height: 360px;
+  max-width: 100%;
+  overflow: auto;
+  white-space: pre;
+}
+
+.report-query {
+  margin-top: 8px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.report-sql {
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #050914;
+  color: var(--accent-deep);
+}
+
+.report-recommendation-group h4 {
+  margin: 0 0 9px;
+  color: var(--purple);
+}
+
+.report-recommendation-group .investigation-recommendation + .investigation-recommendation {
+  margin-top: 8px;
+}
+
+.report-evidence-list > details > code {
+  display: block;
+  margin: 7px 0;
+  color: var(--purple);
+}
+
 .health-section-head > span {
   color: var(--ink-faint);
   font-size: 11px;
@@ -3476,6 +3709,11 @@ body.evidence-open .event-card {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .report-executive-grid,
+  .report-time-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .health-time-card {
     grid-column: auto;
   }
@@ -3506,6 +3744,17 @@ body.evidence-open .event-card {
   .investigation-assessments,
   .investigation-facts {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .report-executive-grid,
+  .report-source-availability,
+  .report-assessment-grid,
+  .report-time-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .report-viewer-head {
+    gap: 10px;
   }
 
   .check-counts {
