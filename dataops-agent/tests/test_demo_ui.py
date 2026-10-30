@@ -173,11 +173,12 @@ def test_demo_ui_routes(monkeypatch):
     assert 'id="runtime-transport"' in index.text
     assert 'id="runtime-session"' in index.text
     assert 'id="runtime-model"' in index.text
-    assert 'styles.css?v=13' in index.text
+    assert 'styles.css?v=14' in index.text
+    assert 'markdown-layout.js?v=1' in index.text
     assert 'conversations.js?v=1' in index.text
     assert 'investigation.js?v=3' in index.text
     assert 'workspace.js?v=1' in index.text
-    assert 'app.js?v=13' in index.text
+    assert 'app.js?v=14' in index.text
     assert '<body data-workspace-view="chat">' in index.text
     assert 'id="health-review-view"' in index.text
     assert 'id="health-view-tab"' in index.text
@@ -197,6 +198,12 @@ def test_demo_ui_routes(monkeypatch):
     assert "function mergeBackendSessions(" in conversation_script.text
     assert "function serializeConversationIndex(" in conversation_script.text
     assert "function canSwitchConversation(" in conversation_script.text
+    markdown_layout_script = client.get("/ui-assets/markdown-layout.js")
+    assert markdown_layout_script.status_code == 200
+    assert markdown_layout_script.headers["cache-control"] == "no-store"
+    assert "function classifyTableColumns(rows)" in markdown_layout_script.text
+    assert "function enhanceMarkdownTables(rootElement)" in markdown_layout_script.text
+    assert 'wrapper.setAttribute("role", "region")' in markdown_layout_script.text
     investigation_script = client.get("/ui-assets/investigation.js")
     assert investigation_script.status_code == 200
     assert investigation_script.headers["cache-control"] == "no-store"
@@ -212,6 +219,8 @@ def test_demo_ui_routes(monkeypatch):
     assert "agentbricks memory bind <store-name>" in app_script.text
     assert "refreshSessionView({ hydrateChat: true })" in app_script.text
     assert "function renderModels(" in app_script.text
+    assert 'window.markdownit({ html: false }).disable("image")' in app_script.text
+    assert "markdownLayout.enhanceMarkdownTables(element)" in app_script.text
     assert 'demoUrl("/api/ui/config")' in app_script.text
     assert 'demoUrl("/api/demo/models")' in app_script.text
     assert 'fetch("/api/ui/health-summary"' in app_script.text
@@ -315,6 +324,9 @@ def test_demo_ui_routes(monkeypatch):
     assert ".recommendation-summary" in styles
     assert ".investigation-recommendation summary:focus-visible" in styles
     assert ".recommendation-evidence-refs" in styles
+    assert ".markdown-table-scroll:focus-visible" in styles
+    assert ".markdown-table-cell--compact" in styles
+    assert ".markdown-table-cell--wide" in styles
     assert 'grid-template-areas: "sidebar main"' in styles
     assert ".chat-panel[hidden],\n.health-review-view[hidden]" in styles
     assert "display: none !important" in styles
