@@ -1,0 +1,20 @@
+%%{init: {"theme":"base","themeVariables":{"background":"#07111f","primaryColor":"#10263c","primaryTextColor":"#e6f4ff","primaryBorderColor":"#2dd4ff","lineColor":"#52677e","fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fontSize":"17px"},"flowchart":{"htmlLabels":true,"nodeSpacing":24,"rankSpacing":24,"padding":24}}}%%
+flowchart LR
+    TASKS["9 / 9<br/>Lakeflow tasks"] ~~~ CHECKS["48<br/>monitoring checks"]
+    CHECKS ~~~ PASS["44<br/>PASS"]
+    PASS ~~~ WARN["4<br/>WARN"]
+    WARN ~~~ FAIL["0<br/>FAIL"]
+    FAIL ~~~ GENIE["2<br/>Genie investigations"]
+    GENIE ~~~ RECS["12<br/>recommendations"]
+
+    classDef metric fill:#10263c,stroke:#38bdf8,color:#f0f9ff,stroke-width:2px;
+    classDef pass fill:#12362d,stroke:#34d399,color:#ecfdf5,stroke-width:2px;
+    classDef warn fill:#422f12,stroke:#fbbf24,color:#fffbeb,stroke-width:2px;
+    classDef fail fill:#3b1f28,stroke:#fb7185,color:#fff1f2,stroke-width:2px;
+    classDef ai fill:#291e48,stroke:#a78bfa,color:#f5f3ff,stroke-width:2px;
+
+    class TASKS,CHECKS metric;
+    class PASS pass;
+    class WARN warn;
+    class FAIL fail;
+    class GENIE,RECS ai;

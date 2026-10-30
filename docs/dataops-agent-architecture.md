@@ -4,43 +4,16 @@ The DataOps AI Agent is a read-only operational plane over the Databricks analyt
 does not sit in the data path and cannot change Lakeflow jobs, tables, permissions, schedules, or
 monitoring results.
 
-```mermaid
-flowchart LR
-    GEN[Deterministic synthetic generator] --> BRONZE[Managed Delta Bronze]
-    BRONZE --> STAGING[dbt staging]
-    STAGING --> SILVER[Silver dimensions and facts]
-    SILVER --> GOLD[Gold analytics marts]
-    GOLD --> BI[Databricks AI/BI]
-    STAGING --> OBS[Observability models]
-    SILVER --> OBS
-    GOLD --> OBS
+[![End-to-end DataOps architecture](../images/AI%20Analytics%20Data%20Platform%20Architecture.svg)](../images/AI%20Analytics%20Data%20Platform%20Architecture.svg)
 
-    LAKEFLOW[Databricks Lakeflow Job] -. orchestrates .-> GEN
-    LAKEFLOW -. orchestrates .-> STAGING
+The diagram deliberately separates the scheduled Lakeflow data path from the user-triggered
+DataOps path. It is available as [editable Mermaid](../images/AI%20Analytics%20Data%20Platform%20Architecture.mmd),
+[SVG](../images/AI%20Analytics%20Data%20Platform%20Architecture.svg), and
+[high-resolution PNG](../images/AI%20Analytics%20Data%20Platform%20Architecture.png).
 
-    JOBS["Jobs API<br/>execution evidence"] --> GRAPH[LangGraph investigation]
-    OBS --> SQL["Fixed read-only SQL<br/>latest health"]
-    SQL --> GRAPH
-    OBS --> GENIE["Databricks Genie<br/>bounded historical evidence"]
-    GENIE --> GRAPH
-    GRAPH --> RECS[Deterministic recommendations]
-    RECS --> REPORT[InvestigationReport v1.1]
-
-    REPORT --> UI[DataOps AI Command Center]
-    SQL --> REVIEW[Daily Health Review]
-    REVIEW --> UI
-
-    AB[Agent Bricks runtime] --> UI
-    AB --> RUNTIME["Runtime Store<br/>invocation recovery"]
-    AB --> SESSION["Session Store<br/>conversation history"]
-    AB --> MODEL["Unity Gateway model service<br/>chat routing"]
-
-    UC[Unity Catalog] -. governs .-> BRONZE
-    UC -. governs .-> STAGING
-    UC -. governs .-> SILVER
-    UC -. governs .-> GOLD
-    UC -. governs .-> OBS
-```
+MLflow trace metadata is recorded, but span artifact upload remains blocked at the
+workspace-storage network boundary. That known tracing limitation is separate from the validated
+application, investigation, Session Store, and Runtime Store behavior.
 
 ## Investigation contract
 

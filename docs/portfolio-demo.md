@@ -9,7 +9,7 @@ be captured; no screenshot or footage is represented as complete by these docume
 ## 1. Architecture and problem statement — 1 minute
 
 - Introduce a synthetic AI-chatbot workload with realistic daily product, model, and finance events.
-- Show the [Databricks platform diagram](../images/AI%20Analytics%20Data%20Platform%20Architecture.png)
+- Show the [Databricks platform diagram](../images/AI%20Analytics%20Data%20Platform%20Architecture.svg)
   and the [DataOps agent architecture](dataops-agent-architecture.md).
 - Explain the core boundary: controlled defects are retained in append-only Bronze, while clean
   generator state remains isolated so the next daily run stays deterministic.
