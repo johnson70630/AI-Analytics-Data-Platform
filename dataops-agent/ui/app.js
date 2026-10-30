@@ -96,6 +96,26 @@ const elements = {
   investigationRootCause: document.querySelector("#investigation-root-cause"),
   investigationImpact: document.querySelector("#investigation-impact"),
   investigationRecommendations: document.querySelector("#investigation-recommendations"),
+  openReportViewer: document.querySelector("#open-report-viewer"),
+  reportViewer: document.querySelector("#investigation-report-viewer"),
+  closeReportViewer: document.querySelector("#close-report-viewer"),
+  reportGeneratedAt: document.querySelector("#report-generated-at"),
+  reportCompleteness: document.querySelector("#report-completeness"),
+  reportPipelineStatus: document.querySelector("#report-pipeline-status"),
+  reportMonitoringStatus: document.querySelector("#report-monitoring-status"),
+  reportIssueCount: document.querySelector("#report-issue-count"),
+  reportSeverity: document.querySelector("#report-severity"),
+  reportSourceAvailability: document.querySelector("#report-source-availability"),
+  reportRootCause: document.querySelector("#report-root-cause"),
+  reportImpact: document.querySelector("#report-impact"),
+  reportMonitoringTimes: document.querySelector("#report-monitoring-times"),
+  reportReferenceTimes: document.querySelector("#report-reference-times"),
+  reportSyntheticDates: document.querySelector("#report-synthetic-dates"),
+  reportIssueList: document.querySelector("#report-issue-list"),
+  reportGenieList: document.querySelector("#report-genie-list"),
+  reportRecommendationGroups: document.querySelector("#report-recommendation-groups"),
+  reportSourceErrors: document.querySelector("#report-source-errors"),
+  reportEvidenceList: document.querySelector("#report-evidence-list"),
   runtimeTransport: document.querySelector("#runtime-transport"),
   runtimeSession: document.querySelector("#runtime-session"),
   runtimeModel: document.querySelector("#runtime-model"),
@@ -112,6 +132,7 @@ const AGENT_FRAMEWORK = "LangGraph";
 
 const SESSION_STORAGE_KEY = "databricks-agentbricks-session-id";
 const CONVERSATION_INDEX_STORAGE_KEY = "dataops-conversation-index-v1";
+const INVESTIGATION_RECOVERY_STORAGE_KEY = "dataops-active-investigation-v1";
 const conversationIndex = window.DataOpsConversationIndex;
 const investigation = window.DataOpsInvestigation;
 
@@ -157,6 +178,8 @@ const state = {
   investigationRunning: false,
   investigationInvocationId: "",
   completedInvestigationSnapshotKey: "",
+  investigationReport: null,
+  investigationRecoveryStarted: false,
 };
 
 function ensureSessionId() {
@@ -1469,7 +1492,7 @@ async function loadModels() {
 
 function healthTone(status) {
   const normalized = String(status || "UNKNOWN").toUpperCase();
-  if (normalized === "PASS" || normalized === "CURRENT") return "success";
+  if (normalized === "PASS" || normalized === "CURRENT" || normalized === "COMPLETE") return "success";
   if (normalized === "WARN" || normalized === "STALE" || normalized === "PARTIAL") return "warning";
   if (normalized === "FAIL" || normalized === "UNAVAILABLE") return "error";
   if (normalized === "RUNNING") return "info";
@@ -1555,9 +1578,73 @@ function resetInvestigationForSnapshot(snapshot, key) {
   state.healthSnapshotKey = key;
   state.investigationInvocationId = "";
   state.completedInvestigationSnapshotKey = "";
+  state.investigationReport = null;
   elements.investigationResult.hidden = true;
+  elements.reportViewer.hidden = true;
+  elements.openReportViewer.hidden = true;
   elements.investigationRecommendations.replaceChildren();
   setInvestigationButton("Run Full Investigation", false);
+}
+
+function persistActiveInvestigation(invocationId, sessionId, snapshotKey) {
+  const value = investigation.serializeRecoveryState({
+    invocationId,
+    sessionId,
+    snapshotKey,
+    startedAt: new Date().toISOString(),
+  });
+  try {
+    sessionStorage.setItem(INVESTIGATION_RECOVERY_STORAGE_KEY, value);
+  } catch (error) {
+    addEvent("investigation.recovery.storage_error", { message: String(error) });
+  }
+}
+
+function clearActiveInvestigation() {
+  try {
+    sessionStorage.removeItem(INVESTIGATION_RECOVERY_STORAGE_KEY);
+  } catch {
+    /* Storage can be unavailable in hardened browser contexts. */
+  }
+}
+
+function appendTextValues(container, values, emptyLabel = "Unavailable") {
+  container.replaceChildren();
+  const entries = Array.isArray(values) ? values.filter((value) => value != null) : [];
+  if (!entries.length) {
+    const empty = document.createElement("span");
+    empty.className = "report-unavailable";
+    empty.textContent = emptyLabel;
+    container.append(empty);
+    return;
+  }
+  entries.forEach((value) => {
+    const item = document.createElement("code");
+    item.textContent = String(value);
+    container.append(item);
+  });
+}
+
+function jsonDetails(label, value, className = "report-json") {
+  const details = document.createElement("details");
+  const summary = document.createElement("summary");
+  summary.textContent = label;
+  const pre = document.createElement("pre");
+  pre.className = className;
+  pre.textContent = JSON.stringify(value, null, 2);
+  details.append(summary, pre);
+  return details;
+}
+
+function reportCardHeader(titleText, status) {
+  const head = document.createElement("div");
+  head.className = "health-issue-top";
+  const title = document.createElement("strong");
+  title.textContent = titleText || "Unnamed finding";
+  const badge = document.createElement("span");
+  setHealthBadge(badge, status);
+  head.append(title, badge);
+  return head;
 }
 
 function renderRecommendation(recommendation) {
@@ -1628,6 +1715,178 @@ function renderInvestigationReport(report) {
       elements.investigationRecommendations.append(renderRecommendation(recommendation));
     });
   }
+  state.investigationReport = report;
+  elements.openReportViewer.hidden = false;
+  renderFullInvestigationReport(report);
+}
+
+function renderReportIssues(view) {
+  elements.reportIssueList.replaceChildren();
+  if (!view.issues.length) {
+    stateMessage(elements.reportIssueList, "No detected issues were returned by the investigation.");
+    return;
+  }
+  view.issues.forEach((issue) => {
+    const card = document.createElement("article");
+    card.className = "report-card";
+    card.append(reportCardHeader(issue.name, issue.status));
+    const meta = document.createElement("p");
+    meta.className = "report-meta";
+    meta.textContent = [issue.reference, issue.source, issue.category].join(" · ");
+    const affected = document.createElement("p");
+    affected.textContent = `Affected entity: ${issue.entity || "Not identified"} · Metric: ${issue.metric || "Not identified"}`;
+    card.append(meta, affected);
+    if (!issue.source_available) {
+      const unavailable = document.createElement("p");
+      unavailable.className = "report-warning";
+      unavailable.textContent = "The associated source is unavailable or incomplete.";
+      card.append(unavailable);
+    }
+    card.append(jsonDetails("Observed measurements and source fields", issue.details));
+    elements.reportIssueList.append(card);
+  });
+}
+
+function renderReportGenie(view) {
+  elements.reportGenieList.replaceChildren();
+  if (!view.genie_findings.length) {
+    stateMessage(elements.reportGenieList, "No Genie investigation was requested for this report.");
+    return;
+  }
+  view.genie_findings.forEach((finding) => {
+    const card = document.createElement("article");
+    card.className = "report-card";
+    card.append(reportCardHeader(finding.investigation_id, finding.status));
+    const question = document.createElement("p");
+    question.className = "report-question";
+    question.textContent = finding.question;
+    const answer = document.createElement("p");
+    answer.textContent = finding.answer || "No narrative answer was available.";
+    card.append(question, answer);
+    if (finding.error) {
+      const error = document.createElement("p");
+      error.className = "report-warning";
+      error.textContent = `${finding.error.type || "Genie evidence error"}: ${finding.error.message || "Details unavailable"}`;
+      card.append(error);
+    }
+    if (!finding.queries.length) {
+      const empty = document.createElement("p");
+      empty.className = "report-unavailable";
+      empty.textContent = "No query-result evidence was returned.";
+      card.append(empty);
+    }
+    finding.queries.forEach((query, index) => {
+      const queryDetails = document.createElement("details");
+      queryDetails.className = "report-query";
+      const querySummary = document.createElement("summary");
+      const flags = [
+        query.result_available ? "result available" : "result unavailable",
+        query.truncated ? "truncated to bounded result limit" : null,
+      ].filter(Boolean);
+      querySummary.textContent = `Query ${index + 1} · ${flags.join(" · ")}`;
+      const metadata = document.createElement("p");
+      metadata.className = "report-meta";
+      metadata.textContent = `Statement: ${query.statement_id || "unavailable"} · Attachment: ${query.attachment_id || "unavailable"}`;
+      queryDetails.append(querySummary, metadata);
+      if (query.generated_sql) {
+        const sqlLabel = document.createElement("strong");
+        sqlLabel.textContent = "Generated SQL metadata";
+        const sql = document.createElement("pre");
+        sql.className = "report-sql";
+        sql.textContent = query.generated_sql;
+        queryDetails.append(sqlLabel, sql);
+      }
+      if (query.error) {
+        const error = document.createElement("p");
+        error.className = "report-warning";
+        error.textContent = `${query.error.type || "Result error"}: ${query.error.message || "Details unavailable"}`;
+        queryDetails.append(error);
+      }
+      if (query.result_available) {
+        queryDetails.append(jsonDetails(
+          `View ${Array.isArray(query.rows) ? query.rows.length : 0} bounded row(s)${query.truncated ? " (truncated)" : ""}`,
+          { columns: query.columns, rows: query.rows, total_row_count: query.total_row_count, truncated: query.truncated },
+        ));
+      }
+      card.append(queryDetails);
+    });
+    elements.reportGenieList.append(card);
+  });
+}
+
+function renderReportRecommendations(view) {
+  elements.reportRecommendationGroups.replaceChildren();
+  if (!view.recommendation_groups.length) {
+    stateMessage(elements.reportRecommendationGroups, "No supported recommendations were returned.");
+    return;
+  }
+  view.recommendation_groups.forEach((group) => {
+    const section = document.createElement("section");
+    section.className = "report-recommendation-group";
+    const heading = document.createElement("h4");
+    heading.textContent = group.issue
+      ? `${group.issue.name} · ${group.reference}`
+      : "General or source-availability guidance";
+    section.append(heading);
+    group.recommendations.forEach((recommendation) => {
+      section.append(renderRecommendation(recommendation));
+    });
+    elements.reportRecommendationGroups.append(section);
+  });
+}
+
+function renderReportEvidence(view) {
+  elements.reportSourceErrors.replaceChildren();
+  elements.reportSourceErrors.hidden = !view.source_errors.length;
+  view.source_errors.forEach((sourceError) => {
+    const item = document.createElement("p");
+    const kind = sourceError.error_type ? `${sourceError.error_type} · ` : "";
+    item.textContent = `${sourceError.source || "source"}: ${kind}${sourceError.message || "Evidence unavailable."}`;
+    elements.reportSourceErrors.append(item);
+  });
+  elements.reportEvidenceList.replaceChildren();
+  view.evidence_sections.forEach((section) => {
+    const details = jsonDetails(section.name, section.value);
+    const reference = document.createElement("code");
+    reference.textContent = section.reference;
+    details.insertBefore(reference, details.children[1]);
+    elements.reportEvidenceList.append(details);
+  });
+}
+
+function renderFullInvestigationReport(report) {
+  const view = investigation.fullViewModel(report);
+  const executive = view.executive;
+  elements.reportGeneratedAt.textContent = `Generated ${formatHealthTimestamp(executive.generated_at)}`;
+  setHealthBadge(elements.reportCompleteness, executive.completeness, executive.completeness);
+  elements.reportPipelineStatus.textContent = executive.pipeline.status || "UNKNOWN";
+  elements.reportMonitoringStatus.textContent = executive.monitoring.status || "UNKNOWN";
+  elements.reportIssueCount.textContent = String(executive.issue_count);
+  elements.reportSeverity.textContent = `${executive.severity.fail} FAIL · ${executive.severity.warn} WARN · ${executive.severity.unknown} OTHER`;
+  elements.reportRootCause.textContent = `${executive.root_cause.status}: ${executive.root_cause.explanation}`;
+  elements.reportImpact.textContent = `${executive.impact.status}: ${executive.impact.explanation}`;
+
+  elements.reportSourceAvailability.replaceChildren();
+  executive.source_availability.forEach((source) => {
+    const item = document.createElement("div");
+    const name = document.createElement("strong");
+    name.textContent = source.source;
+    const status = document.createElement("span");
+    status.textContent = `${source.available ? "Available" : "Unavailable"} · ${source.status}`;
+    item.className = source.available ? "source-available" : "source-unavailable";
+    item.append(name, status);
+    elements.reportSourceAvailability.append(item);
+  });
+
+  appendTextValues(elements.reportMonitoringTimes, executive.monitoring.monitoring_execution_timestamps);
+  appendTextValues(elements.reportReferenceTimes, executive.monitoring.monitoring_reference_timestamps);
+  const syntheticDates = Object.entries(executive.monitoring.synthetic_activity_dates || {})
+    .flatMap(([category, values]) => (values || []).map((value) => `${category}: ${value}`));
+  appendTextValues(elements.reportSyntheticDates, syntheticDates);
+  renderReportIssues(view);
+  renderReportGenie(view);
+  renderReportRecommendations(view);
+  renderReportEvidence(view);
 }
 
 function investigationResultItem(result) {
@@ -1654,10 +1913,88 @@ async function pollInvestigation(invocationId, sessionId) {
     addEvent("investigation.poll", { id: invocationId, status: result.status });
     if (result.status === "completed") return investigationResultItem(result);
     if (result.status === "failed") {
-      throw new Error(result.error?.message || result.error || "The investigation workflow failed.");
+      const error = new Error(result.error?.message || result.error || "The investigation workflow failed.");
+      error.confirmedInvocationFailure = true;
+      throw error;
     }
     elements.investigationMessage.textContent = `Investigation ${result.status || "running"}…`;
     delay = Math.min(delay * 1.5, 5000);
+  }
+}
+
+function acceptInvestigationResult(item, snapshotKey) {
+  let report;
+  try {
+    report = investigation.validateReport(item.report);
+  } catch (error) {
+    error.invalidInvestigationReport = true;
+    throw error;
+  }
+  renderInvestigationReport(report);
+  state.healthSnapshot = item.health_snapshot || state.healthSnapshot;
+  state.healthSnapshotKey = snapshotKey || investigation.snapshotKey(item.health_snapshot || {});
+  state.completedInvestigationSnapshotKey = state.healthSnapshotKey;
+  state.investigationInvocationId = "";
+  clearActiveInvestigation();
+  setInvestigationButton("Investigation complete", true);
+  addEvent("investigation.completed", item);
+}
+
+async function recoverActiveInvestigation() {
+  if (state.investigationRecoveryStarted) return;
+  state.investigationRecoveryStarted = true;
+  let raw = null;
+  try {
+    raw = sessionStorage.getItem(INVESTIGATION_RECOVERY_STORAGE_KEY);
+  } catch {
+    return;
+  }
+  const recovery = investigation.parseRecoveryState(raw, { sessionId: state.sessionId });
+  if (!recovery) {
+    if (raw) clearActiveInvestigation();
+    return;
+  }
+
+  state.investigationRunning = true;
+  state.investigationInvocationId = recovery.invocation_id;
+  state.healthSnapshotKey = recovery.snapshot_key;
+  elements.investigationResult.hidden = false;
+  elements.investigationMessage.textContent = "Reconnecting to the existing investigation…";
+  setHealthBadge(elements.investigationStatus, "RUNNING", "Recovering");
+  setInvestigationButton("Investigation running…", true);
+  elements.healthRefresh.disabled = true;
+  try {
+    const response = await fetch(`/api/invocations/${encodeURIComponent(recovery.invocation_id)}`, {
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: routingHeaders(recovery.session_id),
+    });
+    if ([401, 403, 404].includes(response.status)) {
+      clearActiveInvestigation();
+      state.investigationInvocationId = "";
+      elements.investigationResult.hidden = true;
+      addEvent("investigation.recovery.cleared", { status: response.status });
+      return;
+    }
+    const result = await jsonResponse(response);
+    const item = result.status === "completed"
+      ? investigationResultItem(result)
+      : await pollInvestigation(recovery.invocation_id, recovery.session_id);
+    acceptInvestigationResult(item, recovery.snapshot_key);
+    addEvent("investigation.recovered", { id: recovery.invocation_id });
+  } catch (error) {
+    if (error.confirmedInvocationFailure || error.invalidInvestigationReport) {
+      clearActiveInvestigation();
+      state.investigationInvocationId = "";
+    }
+    elements.investigationResult.hidden = false;
+    setHealthBadge(elements.investigationStatus, "FAIL", "Recovery failed");
+    elements.investigationMessage.textContent = `Investigation recovery failed: ${error.message}`;
+    setInvestigationButton("Refresh health before retrying", true);
+    addEvent("investigation.recovery.error", { message: error.message });
+  } finally {
+    state.investigationRunning = false;
+    elements.healthRefresh.disabled = false;
   }
 }
 
@@ -1690,6 +2027,7 @@ async function runFullInvestigation() {
       health_snapshot: state.healthSnapshot,
     },
   };
+  persistActiveInvestigation(request.id, sessionId, state.healthSnapshotKey);
 
   try {
     const response = await fetch("/api/invocations", {
@@ -1701,17 +2039,18 @@ async function runFullInvestigation() {
     const started = await jsonResponse(response);
     addEvent("investigation.started", { id: started.id || request.id, snapshot: state.healthSnapshot });
     const item = await pollInvestigation(started.id || request.id, sessionId);
-    const report = investigation.validateReport(item.report);
-    renderInvestigationReport(report);
-    state.completedInvestigationSnapshotKey = state.healthSnapshotKey;
-    setInvestigationButton("Investigation complete", true);
-    addEvent("investigation.completed", item);
+    acceptInvestigationResult(item, state.healthSnapshotKey);
   } catch (error) {
     elements.investigationResult.hidden = false;
     setHealthBadge(elements.investigationStatus, "FAIL", "Failed");
     elements.investigationMessage.textContent = `Investigation failed: ${error.message}`;
-    state.investigationInvocationId = "";
-    setInvestigationButton("Retry Full Investigation", false);
+    if (error.confirmedInvocationFailure || error.invalidInvestigationReport) {
+      clearActiveInvestigation();
+      state.investigationInvocationId = "";
+      setInvestigationButton("Retry Full Investigation", false);
+    } else {
+      setInvestigationButton("Reconnect Investigation", false);
+    }
     addEvent("investigation.error", { message: error.message });
   } finally {
     state.investigationRunning = false;
@@ -1880,6 +2219,7 @@ async function loadConfig() {
       ? "Conversation transcripts come from the managed Session Store."
       : "This browser remembers conversation names, but in-process transcripts are lost when the backend restarts.";
     addEvent("runtime.config", config);
+    void recoverActiveInvestigation();
     void refreshSessionView({ hydrateChat: true });
     // The memory pane loads lazily when opened; refresh it if it is already open.
     if (!elements.memoryPane.hidden) void loadMemory();
@@ -1950,6 +2290,15 @@ elements.chatViewTab.addEventListener("click", () => setWorkspaceView("chat"));
 elements.healthViewTab.addEventListener("click", () => setWorkspaceView("health"));
 elements.healthRefresh.addEventListener("click", () => void loadDailyHealth());
 elements.runFullInvestigation.addEventListener("click", () => void runFullInvestigation());
+elements.openReportViewer.addEventListener("click", () => {
+  if (!state.investigationReport) return;
+  elements.reportViewer.hidden = false;
+  elements.closeReportViewer.focus();
+});
+elements.closeReportViewer.addEventListener("click", () => {
+  elements.reportViewer.hidden = true;
+  elements.openReportViewer.focus();
+});
 elements.newSession.addEventListener("click", createNewSession);
 elements.railNewSession.addEventListener("click", createNewSession);
 elements.refreshSession.addEventListener("click", () => refreshSessionView({ hydrateChat: true }));
@@ -1993,7 +2342,11 @@ elements.memoryModal.addEventListener("click", (event) => {
   if (event.target === elements.memoryModal) closeMemoryModal();
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !elements.memoryModal.hidden) closeMemoryModal();
+  if (event.key === "Escape" && !elements.reportViewer.hidden) {
+    elements.reportViewer.hidden = true;
+    elements.openReportViewer.focus();
+  }
+  else if (event.key === "Escape" && !elements.memoryModal.hidden) closeMemoryModal();
   else if (event.key === "Escape" && !elements.runtimeDrawer.hidden) closeRuntimeDrawer();
   else if (event.key === "Escape" && document.body.classList.contains("evidence-open")) {
     document.body.classList.remove("evidence-open");

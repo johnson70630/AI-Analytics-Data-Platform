@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
     <title>DataOps AI Command Center</title>
-    <link rel="stylesheet" href="/ui-assets/styles.css?v=8" />
+    <link rel="stylesheet" href="/ui-assets/styles.css?v=9" />
   </head>
   <body>
     <div class="app-shell">
@@ -319,7 +319,74 @@
                 <p class="eyebrow">Top recommendations</p>
                 <div id="investigation-recommendations" class="investigation-recommendations"></div>
               </div>
+              <button id="open-report-viewer" class="secondary-button report-viewer-button" type="button" hidden>View Full Report</button>
               <p class="health-boundary-note">This investigation recollects evidence when it runs. Its relationship to the displayed health snapshot remains unverified unless report evidence establishes linkage.</p>
+            </section>
+
+            <section id="investigation-report-viewer" class="report-viewer" aria-labelledby="report-viewer-heading" hidden>
+              <div class="report-viewer-head">
+                <div>
+                  <p class="eyebrow">Investigation report · schema 1.1</p>
+                  <h2 id="report-viewer-heading">Evidence-rich investigation</h2>
+                  <p id="report-generated-at"></p>
+                </div>
+                <button id="close-report-viewer" class="icon-button" type="button" aria-label="Close full investigation report">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+
+              <section class="report-section" aria-labelledby="report-executive-heading">
+                <div class="health-section-head">
+                  <div><p class="eyebrow">Executive summary</p><h3 id="report-executive-heading">Current findings</h3></div>
+                  <span id="report-completeness" class="health-badge neutral">Unknown</span>
+                </div>
+                <div class="report-executive-grid">
+                  <article><span>Pipeline execution</span><strong id="report-pipeline-status">—</strong></article>
+                  <article><span>Monitoring health</span><strong id="report-monitoring-status">—</strong></article>
+                  <article><span>Detected issues</span><strong id="report-issue-count">—</strong></article>
+                  <article><span>Severity</span><strong id="report-severity">—</strong></article>
+                </div>
+                <div id="report-source-availability" class="report-source-availability"></div>
+                <div class="report-assessment-grid">
+                  <article><strong>Root cause</strong><p id="report-root-cause"></p></article>
+                  <article><strong>Business impact</strong><p id="report-impact"></p></article>
+                </div>
+                <div class="report-time-grid">
+                  <article><strong>Monitoring execution timestamps</strong><div id="report-monitoring-times"></div></article>
+                  <article><strong>Monitoring reference timestamps</strong><div id="report-reference-times"></div></article>
+                  <article><strong>Synthetic reference dates</strong><div id="report-synthetic-dates"></div></article>
+                </div>
+              </section>
+
+              <section class="report-section" aria-labelledby="report-issues-heading">
+                <div class="health-section-head">
+                  <div><p class="eyebrow">Observed anomalies</p><h3 id="report-issues-heading">Issue details</h3></div>
+                </div>
+                <div id="report-issue-list" class="report-card-list"></div>
+              </section>
+
+              <section class="report-section" aria-labelledby="report-genie-heading">
+                <div class="health-section-head">
+                  <div><p class="eyebrow">Bounded historical evidence</p><h3 id="report-genie-heading">Genie investigation</h3></div>
+                  <span>No new queries run when viewed</span>
+                </div>
+                <div id="report-genie-list" class="report-card-list"></div>
+              </section>
+
+              <section class="report-section" aria-labelledby="report-recommendations-heading">
+                <div class="health-section-head">
+                  <div><p class="eyebrow">Advisory only</p><h3 id="report-recommendations-heading">Prioritized recommendations</h3></div>
+                </div>
+                <div id="report-recommendation-groups" class="report-card-list"></div>
+              </section>
+
+              <section class="report-section" aria-labelledby="report-evidence-heading">
+                <div class="health-section-head">
+                  <div><p class="eyebrow">Original source associations</p><h3 id="report-evidence-heading">Evidence viewer</h3></div>
+                </div>
+                <div id="report-source-errors" class="health-source-errors" hidden></div>
+                <div id="report-evidence-list" class="report-evidence-list"></div>
+              </section>
             </section>
 
             <p class="health-boundary-note">A successful Lakeflow run does not imply all monitoring checks passed. Monitoring timestamps and synthetic reference dates are intentionally shown separately.</p>
@@ -461,7 +528,7 @@
 
     <script src="/ui-assets/markdown-it-15.0.2.min.js" defer></script>
     <script src="/ui-assets/conversations.js?v=1" defer></script>
-    <script src="/ui-assets/investigation.js?v=1" defer></script>
-    <script src="/ui-assets/app.js?v=10" defer></script>
+    <script src="/ui-assets/investigation.js?v=2" defer></script>
+    <script src="/ui-assets/app.js?v=11" defer></script>
   </body>
 </html>

@@ -6,6 +6,7 @@ const investigation = require("../ui/investigation.js");
 function report(completeness = "complete") {
   return {
     schema_version: "1.1",
+    generated_at: "2026-10-29T18:30:00Z",
     investigation_completeness: completeness,
     source_availability: {
       jobs: { available: true, status: "PASS" },
@@ -13,8 +14,19 @@ function report(completeness = "complete") {
       genie: { available: false, status: "not_requested" },
     },
     pipeline_execution_health: { status: "PASS" },
-    monitoring_health: { status: completeness === "complete" ? "WARN" : "UNAVAILABLE" },
-    detected_issues: [{ source: "observability", status: "WARN" }],
+    monitoring_health: {
+      status: completeness === "complete" ? "WARN" : "UNAVAILABLE",
+      monitoring_execution_timestamps: ["2026-10-29T17:05:00Z"],
+      monitoring_reference_timestamps: ["2026-10-29T16:00:00Z"],
+      synthetic_activity_dates: { metric_dates: ["2026-10-28"] },
+    },
+    detected_issues: [{
+      source: "observability",
+      category: "quality",
+      status: "WARN",
+      name: "payments.failed_payment_rate",
+      details: { entity_name: "payments", metric_name: "failed_payment_rate", metric_rate: 0.12 },
+    }],
     genie_findings: [],
     source_errors: completeness === "complete" ? [] : [{ source: "observability", message: "Unavailable" }],
     root_cause: { status: "unknown", explanation: "The evidence does not establish a root cause." },
@@ -30,6 +42,18 @@ function report(completeness = "complete") {
       verification_steps: ["Record the comparison."],
     }],
     recommendation_summary: { recommendation_count: 1 },
+    evidence: { jobs: { run_id: 456 }, observability: { total_issue_count: 1 }, genie: [] },
+    source_references: {
+      jobs: { run_id: 456 },
+      observability: {
+        monitoring_execution_timestamps: ["2026-10-29T17:05:00Z"],
+        monitoring_reference_timestamps: ["2026-10-29T16:00:00Z"],
+        synthetic_activity_dates: { metric_dates: ["2026-10-28"] },
+      },
+      genie: [],
+    },
+    genie_routing: { maximum_investigations: 2, selected_count: 0, decisions: [] },
+    workflow: { path: ["collect_jobs", "collect_observability", "construct_report"] },
   };
 }
 
@@ -74,8 +98,159 @@ test("partial and unavailable reports are never labeled successful", () => {
   assert.equal(investigation.reportState(report("unavailable")), "failure");
 });
 
+test("source failures remain visible and cannot be converted into healthy evidence", () => {
+  const value = report("partial");
+  const view = investigation.fullViewModel(value);
+
+  assert.equal(view.executive.completeness, "partial");
+  assert.equal(view.executive.source_availability.find((source) => source.source === "observability").available, false);
+  assert.deepEqual(view.source_errors, [{ source: "observability", message: "Unavailable" }]);
+});
+
 test("schema versions other than 1.1 are rejected", () => {
   const invalid = report();
   invalid.schema_version = "1.0";
   assert.throws(() => investigation.validateReport(invalid), /schema must be version 1.1/);
+});
+
+test("full view maps issue references and recommendation groups without losing source associations", () => {
+  const view = investigation.fullViewModel(report());
+
+  assert.equal(view.issues[0].reference, "detected_issues[0]");
+  assert.equal(view.recommendation_groups[0].reference, "detected_issues[0]");
+  assert.equal(view.recommendation_groups[0].issue.status, "WARN");
+  assert.equal(view.evidence_sections[1].reference, "source_references");
+  assert.deepEqual(view.executive.monitoring.synthetic_activity_dates.metric_dates, ["2026-10-28"]);
+});
+
+test("malformed recommendation evidence references remain visible as ungrouped guidance", () => {
+  const value = report();
+  value.recommendations[0].evidence_refs = ["detected_issues[999]", "unsupported.reference"];
+
+  const view = investigation.fullViewModel(value);
+  assert.equal(view.recommendation_groups[0].reference, "general");
+  assert.equal(view.recommendation_groups[0].issue, null);
+  assert.deepEqual(
+    view.recommendation_groups[0].recommendations[0].evidence_refs,
+    ["detected_issues[999]", "unsupported.reference"],
+  );
+});
+
+test("full view preserves bounded Genie SQL metadata, truncation, rows, and partial errors", () => {
+  const value = report("partial");
+  value.genie_findings = [{
+    investigation_id: "genie-1",
+    question: "Show historical failed payment rates.",
+    status: "partial",
+    answer: "One bounded result was returned.",
+    error: { type: "partial_query_results", message: "One result was truncated." },
+    root_cause: value.root_cause,
+    impact: value.impact,
+    evidence: {
+      query_evidence: [{
+        attachment_id: "attachment-1",
+        statement_id: "statement-1",
+        generated_sql: "SELECT metric_date, metric_rate FROM monitored_metrics",
+        result: {
+          available: true,
+          columns: [{ name: "metric_date" }],
+          rows: [["2026-10-28"]],
+          total_row_count: 145,
+          truncated: true,
+          error: null,
+        },
+      }],
+    },
+  }];
+
+  const query = investigation.fullViewModel(value).genie_findings[0].queries[0];
+  assert.equal(query.generated_sql, "SELECT metric_date, metric_rate FROM monitored_metrics");
+  assert.equal(query.truncated, true);
+  assert.equal(query.total_row_count, 145);
+  assert.deepEqual(query.rows, [["2026-10-28"]]);
+});
+
+test("large bounded reports preserve all report evidence for internally scrollable rendering", () => {
+  const value = report();
+  const rows = Array.from({ length: 100 }, (_, index) => [`2026-10-${String((index % 28) + 1).padStart(2, "0")}`, index]);
+  value.detected_issues = Array.from({ length: 250 }, (_, index) => ({
+    source: "observability",
+    category: "quality",
+    status: index % 2 ? "WARN" : "FAIL",
+    name: `entity_${index}.metric_${index}`,
+    details: { entity_name: `entity_${index}`, metric_name: `metric_${index}`, metric_rate: index / 1000 },
+  }));
+  value.recommendations = value.detected_issues.map((issue, index) => ({
+    ...report().recommendations[0],
+    issue_id: `issue-${index}`,
+    evidence_refs: [`detected_issues[${index}]`],
+  }));
+  value.genie_findings = [{
+    investigation_id: "genie-large",
+    question: "Return a bounded history.",
+    status: "complete",
+    answer: "Bounded history returned.",
+    error: null,
+    root_cause: value.root_cause,
+    impact: value.impact,
+    evidence: {
+      query_evidence: [{
+        generated_sql: "SELECT metric_date, metric_rate FROM bounded_history",
+        result: { available: true, columns: ["metric_date", "metric_rate"], rows, total_row_count: 5_000, truncated: true },
+      }],
+    },
+  }];
+
+  const view = investigation.fullViewModel(value);
+  assert.equal(view.issues.length, 250);
+  assert.equal(view.recommendation_groups.length, 250);
+  assert.equal(view.genie_findings[0].queries[0].rows.length, 100);
+  assert.equal(view.genie_findings[0].queries[0].total_row_count, 5_000);
+  assert.equal(view.genie_findings[0].queries[0].truncated, true);
+});
+
+test("invalid or missing evidence fails browser schema validation", () => {
+  const invalid = report();
+  delete invalid.evidence;
+  assert.throws(() => investigation.validateReport(invalid), /field 'evidence' is missing/);
+});
+
+test("external text remains inert data in the full view model", () => {
+  const value = report();
+  value.detected_issues[0].name = '<img src=x onerror="globalThis.pwned=true">';
+  value.recommendations[0].action = "<script>globalThis.pwned=true</script>";
+
+  const view = investigation.fullViewModel(value);
+  assert.equal(view.issues[0].name, '<img src=x onerror="globalThis.pwned=true">');
+  assert.equal(view.recommendation_groups[0].recommendations[0].action, "<script>globalThis.pwned=true</script>");
+  assert.equal(globalThis.pwned, undefined);
+});
+
+test("recovery state stores only minimal identifiers and validates session and age", () => {
+  const raw = investigation.serializeRecoveryState({
+    invocationId: "invocation-1",
+    sessionId: "session-1",
+    snapshotKey: "snapshot-1",
+    startedAt: "2026-10-29T18:00:00Z",
+  });
+  const parsed = investigation.parseRecoveryState(raw, {
+    sessionId: "session-1",
+    now: Date.parse("2026-10-29T18:30:00Z"),
+  });
+
+  assert.deepEqual(Object.keys(parsed).sort(), ["invocation_id", "session_id", "snapshot_key", "started_at", "version"]);
+  assert.equal(raw.includes("report"), false);
+  assert.equal(investigation.parseRecoveryState(raw, { sessionId: "session-2", now: Date.parse("2026-10-29T18:30:00Z") }), null);
+  assert.equal(investigation.parseRecoveryState(raw, { sessionId: "session-1", now: Date.parse("2026-10-31T18:30:00Z") }), null);
+  assert.equal(investigation.parseRecoveryState("not-json", { sessionId: "session-1" }), null);
+});
+
+test("snapshot identity is stable across dashboard refresh generation times", () => {
+  const first = investigation.snapshotContext({
+    generated_at: "2026-10-29T18:00:00Z",
+    pipeline: { status: "PASS", run_id: 456 },
+    monitoring: { status: "WARN", monitoring_run_at: "2026-10-29T17:05:00Z" },
+  });
+  const second = { ...first, generated_at: "2026-10-29T18:05:00Z" };
+  assert.equal(investigation.snapshotKey(first), investigation.snapshotKey(second));
 });
