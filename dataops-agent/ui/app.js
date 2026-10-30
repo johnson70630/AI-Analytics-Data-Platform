@@ -1667,10 +1667,11 @@ function reportCardHeader(titleText, status) {
 function renderRecommendation(recommendation) {
   const article = document.createElement("article");
   article.className = "investigation-recommendation";
+  const display = investigation.recommendationDisplay(recommendation);
   const head = document.createElement("div");
-  head.className = "health-issue-top";
+  head.className = "health-issue-top recommendation-heading";
   const title = document.createElement("strong");
-  title.textContent = recommendation.action;
+  title.textContent = display.title;
   const priority = document.createElement("span");
   priority.className = "health-badge info";
   priority.textContent = recommendation.priority;
@@ -1678,26 +1679,72 @@ function renderRecommendation(recommendation) {
   const category = document.createElement("span");
   category.className = "health-issue-category";
   category.textContent = recommendation.category.replaceAll("_", " ");
-  const rationale = document.createElement("p");
-  rationale.textContent = recommendation.rationale;
+  const overview = document.createElement("p");
+  overview.className = "recommendation-summary";
+  overview.textContent = display.summary;
   const approval = document.createElement("p");
   approval.className = recommendation.requires_human_approval ? "approval-required" : "approval-not-required";
   approval.textContent = recommendation.requires_human_approval
     ? "Human approval required before any proposed correction."
     : "Diagnostic or verification guidance; no corrective action is executed.";
-  const details = document.createElement("details");
-  const summary = document.createElement("summary");
-  summary.textContent = "Evidence and verification";
-  const refs = document.createElement("p");
-  refs.textContent = `Evidence: ${recommendation.evidence_refs.join(", ")}`;
+
+  const recommendationDetails = document.createElement("details");
+  recommendationDetails.className = "recommendation-details";
+  const recommendationSummary = document.createElement("summary");
+  recommendationSummary.textContent = "Recommendation details";
+  const actionLabel = document.createElement("strong");
+  actionLabel.textContent = "Full action";
+  const action = document.createElement("p");
+  action.textContent = recommendation.action;
+  const rationaleLabel = document.createElement("strong");
+  rationaleLabel.textContent = "Rationale";
+  const rationale = document.createElement("p");
+  rationale.textContent = recommendation.rationale;
+  recommendationDetails.append(recommendationSummary, actionLabel, action, rationaleLabel, rationale);
+
+  const evidenceDetails = document.createElement("details");
+  evidenceDetails.className = "recommendation-details";
+  const evidenceSummary = document.createElement("summary");
+  evidenceSummary.textContent = "Evidence references";
+  const refs = document.createElement("div");
+  refs.className = "recommendation-evidence-refs";
+  if (recommendation.evidence_refs.length) {
+    recommendation.evidence_refs.forEach((reference) => {
+      const item = document.createElement("code");
+      item.textContent = reference;
+      refs.append(item);
+    });
+  } else {
+    const unavailable = document.createElement("span");
+    unavailable.className = "report-unavailable";
+    unavailable.textContent = "No evidence references returned.";
+    refs.append(unavailable);
+  }
+  evidenceDetails.append(evidenceSummary, refs);
+
+  const verificationDetails = document.createElement("details");
+  verificationDetails.className = "recommendation-details";
+  const verificationSummary = document.createElement("summary");
+  verificationSummary.textContent = "Technical and verification details";
+  const issue = document.createElement("p");
+  issue.className = "recommendation-issue-id";
+  issue.textContent = `Issue: ${recommendation.issue_id}`;
   const steps = document.createElement("ol");
   recommendation.verification_steps.forEach((step) => {
     const item = document.createElement("li");
     item.textContent = step;
     steps.append(item);
   });
-  details.append(summary, refs, steps);
-  article.append(head, category, rationale, approval, details);
+  verificationDetails.append(verificationSummary, issue, steps);
+  article.append(
+    head,
+    category,
+    overview,
+    approval,
+    recommendationDetails,
+    evidenceDetails,
+    verificationDetails,
+  );
   return article;
 }
 

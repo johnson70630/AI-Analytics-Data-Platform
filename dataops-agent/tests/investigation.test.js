@@ -93,6 +93,49 @@ test("minimal summary preserves evidence references, approval flags, and unknown
   assert.equal(summary.impact.status, "unknown");
 });
 
+test("recommendation display derives concise action titles without changing report data", () => {
+  const recommendation = report().recommendations[0];
+  const original = structuredClone(recommendation);
+  const display = investigation.recommendationDisplay(recommendation);
+
+  assert.equal(display.title, "Compare quality metric baselines");
+  assert.match(display.summary, /cited evidence/);
+  assert.deepEqual(recommendation, original);
+});
+
+test("recommendation display distinguishes advisory remediation, verification, and unavailable evidence", () => {
+  const base = report().recommendations[0];
+  assert.deepEqual(
+    investigation.recommendationDisplay({ ...base, category: "proposed_remediation" }),
+    {
+      title: "Prepare a reviewed quality correction",
+      summary: "Proceed only if diagnosis confirms a specific defect; this advisory does not execute a correction.",
+    },
+  );
+  assert.equal(
+    investigation.recommendationDisplay({ ...base, category: "verification" }).title,
+    "Recheck quality after approval",
+  );
+  assert.equal(
+    investigation.recommendationDisplay({ ...base, issue_id: "source.observability.unavailable" }).title,
+    "Restore monitoring evidence",
+  );
+});
+
+test("recommendation display falls back safely without reflecting untrusted action text", () => {
+  const fallback = investigation.recommendationDisplay({
+    ...report().recommendations[0],
+    issue_id: "unsupported",
+    category: "unsupported",
+    action: "<img src=x onerror=globalThis.pwned=true>",
+  });
+
+  assert.equal(fallback.title, "Investigate cited evidence");
+  assert.match(fallback.summary, /without assigning unsupported cause or impact/);
+  assert.equal(fallback.title.includes("<img"), false);
+  assert.equal(globalThis.pwned, undefined);
+});
+
 test("partial and unavailable reports are never labeled successful", () => {
   assert.equal(investigation.reportState(report("partial")), "partial");
   assert.equal(investigation.reportState(report("unavailable")), "failure");

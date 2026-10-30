@@ -3349,18 +3349,87 @@ body.evidence-open .event-card {
   background: var(--surface-muted);
 }
 
+.recommendation-heading {
+  align-items: flex-start;
+}
+
+.recommendation-heading strong {
+  min-width: 0;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.recommendation-heading .health-badge {
+  flex: 0 0 auto;
+}
+
 .investigation-recommendation > p {
   margin: 7px 0;
   color: var(--ink-soft);
 }
 
+.investigation-recommendation .recommendation-summary {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink);
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .investigation-recommendation details {
   margin-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  padding-top: 8px;
 }
 
 .investigation-recommendation summary {
   color: var(--purple);
   cursor: pointer;
+  font-weight: 600;
+  list-style-position: inside;
+}
+
+.investigation-recommendation summary:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.recommendation-details > strong {
+  display: block;
+  margin-top: 10px;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.recommendation-details > p {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.recommendation-evidence-refs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.recommendation-evidence-refs code {
+  max-width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--purple);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.recommendation-issue-id {
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
 }
 
 .investigation-recommendation ol {
@@ -3374,6 +3443,21 @@ body.evidence-open .event-card {
 
 .investigation-recommendation .approval-not-required {
   color: var(--success);
+}
+
+@media (max-width: 560px) {
+  .investigation-recommendation {
+    padding: 11px;
+  }
+
+  .recommendation-heading {
+    gap: 8px;
+  }
+
+  .recommendation-details > p,
+  .investigation-recommendation li {
+    overflow-wrap: anywhere;
+  }
 }
 
 .report-viewer-button {

@@ -104,6 +104,65 @@
     return `detected_issues[${index}]`;
   }
 
+  function recommendationTopic(recommendation) {
+    const issueId = String(recommendation?.issue_id || "").toLowerCase();
+    if (issueId.startsWith("source.jobs")) return "jobs_source";
+    if (issueId.startsWith("source.observability")) return "monitoring_source";
+    if (issueId.startsWith("genie.")) return "genie";
+    for (const topic of ["execution", "freshness", "quality", "row_counts", "reconciliation"]) {
+      if (issueId.includes(`.${topic}.`)) return topic;
+    }
+    return "general";
+  }
+
+  function recommendationDisplay(recommendation) {
+    const category = String(recommendation?.category || "diagnostic");
+    const topic = recommendationTopic(recommendation);
+    const titles = {
+      diagnostic: {
+        jobs_source: "Restore Jobs evidence",
+        monitoring_source: "Restore monitoring evidence",
+        genie: "Review partial Genie evidence",
+        execution: "Inspect failed Lakeflow execution",
+        freshness: "Validate freshness timing",
+        quality: "Compare quality metric baselines",
+        row_counts: "Reconcile volume changes",
+        reconciliation: "Reconcile layer counts",
+        general: "Investigate cited evidence",
+      },
+      proposed_remediation: {
+        execution: "Prepare an operator-reviewed recovery",
+        freshness: "Prepare a reviewed freshness correction",
+        quality: "Prepare a reviewed quality correction",
+        row_counts: "Prepare a reviewed volume correction",
+        reconciliation: "Prepare a reviewed reconciliation correction",
+        general: "Prepare a reviewed correction",
+      },
+      verification: {
+        execution: "Verify the next Lakeflow run",
+        freshness: "Recheck freshness after approval",
+        quality: "Recheck quality after approval",
+        row_counts: "Recheck volume after approval",
+        reconciliation: "Recheck reconciliation after approval",
+        general: "Verify the approved change",
+      },
+    };
+    const titleSet = titles[category] || titles.diagnostic;
+    const title = titleSet[topic] || titleSet.general || titles.diagnostic.general;
+
+    let summary = "Use the cited evidence to investigate the finding without assigning unsupported cause or impact.";
+    if (topic === "jobs_source" || topic === "monitoring_source") {
+      summary = "Restore the cited read-only evidence before interpreting the affected health signal.";
+    } else if (topic === "genie") {
+      summary = "Treat the historical context as incomplete until its availability and result metadata are verified.";
+    } else if (category === "proposed_remediation") {
+      summary = "Proceed only if diagnosis confirms a specific defect; this advisory does not execute a correction.";
+    } else if (category === "verification") {
+      summary = "After an approved external change, rerun the affected check and compare it with the cited evidence.";
+    }
+    return { title, summary };
+  }
+
   function fullViewModel(report) {
     validateReport(report);
     const issues = report.detected_issues.map((issue, index) => ({
@@ -226,6 +285,7 @@
     validateReport,
     reportState,
     minimalSummary,
+    recommendationDisplay,
     fullViewModel,
     serializeRecoveryState,
     parseRecoveryState,
