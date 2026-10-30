@@ -619,10 +619,12 @@ function buildMessageActions(textEl) {
 }
 
 const markdown = window.markdownit({ html: false }).disable("image");
+const markdownLayout = window.DataOpsMarkdownLayout;
 
 function renderMessageText(element, content) {
   element.dataset.source = content;
   element.innerHTML = markdown.render(content);
+  markdownLayout.enhanceMarkdownTables(element);
 }
 
 function appendMessage(role, content, label, { time } = {}) {
