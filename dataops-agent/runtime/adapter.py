@@ -13,6 +13,8 @@ from databricks_agentkit.langgraph.responses import checkpointed_messages
 from databricks_agentkit.langgraph.session_store import thread_config
 from databricks_agentkit.runtime.auth import AuthError
 
+from runtime.investigation import INVESTIGATION_ACTION, execute_investigation_action
+
 
 def _payload(value: Any) -> dict[str, Any]:
     if isinstance(value, list):
@@ -47,6 +49,9 @@ def _agent_input(payload: dict[str, Any]) -> Any:
 
 async def invoke(value: Any, context: InvocationContext) -> dict:
     payload = _payload(value)
+    if payload.get("action") == INVESTIGATION_ACTION:
+        _session_id(context)
+        return await execute_investigation_action(payload)
     return await _invoke_agent(_agent_input(payload), payload, context)
 
 
@@ -58,6 +63,9 @@ async def recover(value: Any, context: InvocationContext) -> dict:
             "Request-user invocations cannot be recovered in the background.",
             400,
         )
+    if payload.get("action") == INVESTIGATION_ACTION:
+        _session_id(context)
+        return await execute_investigation_action(payload)
     session_id = _session_id(context)
     actor = _actor(payload, session_id)
     agent_input = await recovery_input(
