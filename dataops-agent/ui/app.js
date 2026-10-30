@@ -135,6 +135,7 @@ const CONVERSATION_INDEX_STORAGE_KEY = "dataops-conversation-index-v1";
 const INVESTIGATION_RECOVERY_STORAGE_KEY = "dataops-active-investigation-v1";
 const conversationIndex = window.DataOpsConversationIndex;
 const investigation = window.DataOpsInvestigation;
+const workspaceController = window.DataOpsWorkspace;
 
 if (!conversationIndex) throw new Error("Conversation index helpers failed to load.");
 if (!investigation) throw new Error("Investigation helpers failed to load.");
@@ -1568,9 +1569,25 @@ function renderSourceErrors(errors) {
   });
 }
 
-function setInvestigationButton(label, disabled) {
+function setInvestigationButton(label, disabled, explanation = label) {
   elements.runFullInvestigation.textContent = label;
   elements.runFullInvestigation.disabled = disabled;
+  elements.runFullInvestigation.title = explanation;
+  elements.runFullInvestigation.setAttribute("aria-label", `${label}. ${explanation}`);
+}
+
+function syncInvestigationButton() {
+  const availability = workspaceController.investigationActionState({
+    runtimeAvailable: Boolean(state.config?.background?.enabled),
+    healthSnapshotKey: state.healthSnapshotKey,
+    running: state.investigationRunning,
+    completedSnapshotKey: state.completedInvestigationSnapshotKey,
+  });
+  setInvestigationButton(
+    availability.label,
+    availability.disabled,
+    availability.explanation,
+  );
 }
 
 function resetInvestigationForSnapshot(snapshot, key) {
@@ -1583,7 +1600,7 @@ function resetInvestigationForSnapshot(snapshot, key) {
   elements.reportViewer.hidden = true;
   elements.openReportViewer.hidden = true;
   elements.investigationRecommendations.replaceChildren();
-  setInvestigationButton("Run Full Investigation", false);
+  syncInvestigationButton();
 }
 
 function persistActiveInvestigation(invocationId, sessionId, snapshotKey) {
@@ -1936,7 +1953,11 @@ function acceptInvestigationResult(item, snapshotKey) {
   state.completedInvestigationSnapshotKey = state.healthSnapshotKey;
   state.investigationInvocationId = "";
   clearActiveInvestigation();
-  setInvestigationButton("Investigation complete", true);
+  setInvestigationButton(
+    "Investigation complete",
+    true,
+    "This health snapshot has already been investigated.",
+  );
   addEvent("investigation.completed", item);
 }
 
@@ -1961,7 +1982,11 @@ async function recoverActiveInvestigation() {
   elements.investigationResult.hidden = false;
   elements.investigationMessage.textContent = "Reconnecting to the existing investigation…";
   setHealthBadge(elements.investigationStatus, "RUNNING", "Recovering");
-  setInvestigationButton("Investigation running…", true);
+  setInvestigationButton(
+    "Investigation running…",
+    true,
+    "The current investigation must finish before another can start.",
+  );
   elements.healthRefresh.disabled = true;
   try {
     const response = await fetch(`/api/invocations/${encodeURIComponent(recovery.invocation_id)}`, {
@@ -1990,7 +2015,11 @@ async function recoverActiveInvestigation() {
     elements.investigationResult.hidden = false;
     setHealthBadge(elements.investigationStatus, "FAIL", "Recovery failed");
     elements.investigationMessage.textContent = `Investigation recovery failed: ${error.message}`;
-    setInvestigationButton("Refresh health before retrying", true);
+    setInvestigationButton(
+      "Refresh health before retrying",
+      true,
+      "The previous invocation is unavailable; refresh health evidence before retrying.",
+    );
     addEvent("investigation.recovery.error", { message: error.message });
   } finally {
     state.investigationRunning = false;
@@ -2014,7 +2043,11 @@ async function runFullInvestigation() {
   elements.investigationResult.hidden = false;
   elements.investigationMessage.textContent = "Starting the bounded read-only investigation…";
   setHealthBadge(elements.investigationStatus, "RUNNING", "Running");
-  setInvestigationButton("Investigation running…", true);
+  setInvestigationButton(
+    "Investigation running…",
+    true,
+    "The current investigation must finish before another can start.",
+  );
   elements.healthRefresh.disabled = true;
 
   const request = {
@@ -2139,13 +2172,7 @@ async function loadDailyHealth() {
 }
 
 function setWorkspaceView(view) {
-  const showHealth = view === "health";
-  elements.healthView.hidden = !showHealth;
-  elements.chatView.hidden = showHealth;
-  elements.healthViewTab.classList.toggle("active", showHealth);
-  elements.chatViewTab.classList.toggle("active", !showHealth);
-  elements.healthViewTab.setAttribute("aria-selected", String(showHealth));
-  elements.chatViewTab.setAttribute("aria-selected", String(!showHealth));
+  const { showHealth } = workspaceController.applyWorkspaceView(elements, view, document.body);
   if (showHealth && !state.healthLoaded) void loadDailyHealth();
 }
 
@@ -2154,6 +2181,7 @@ async function loadConfig() {
     const response = await fetch(demoUrl("/api/ui/config"), { cache: "no-store" });
     const config = await jsonResponse(response);
     state.config = config;
+    syncInvestigationButton();
     state.instanceId = config.instance_id;
     renderModels(config.models);
     void loadModels().catch((error) => addEvent("models.error", { message: String(error) }));
