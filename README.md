@@ -4,6 +4,31 @@ A Databricks-native batch analytics platform for a simulated AI chatbot product.
 
 This is a portfolio-scale production design: the data is synthetic, but the ingestion boundaries, incremental processing, SCD2 history, observability, orchestration, deployment, and access controls are implemented and validated end to end.
 
+## Portfolio Highlights
+
+| Capability | What this project demonstrates |
+|---|---|
+| Data platform | Deterministic synthetic generation into append-only Delta Bronze, followed by dbt staging, Silver dimensions/facts, Gold marts, and observability models. |
+| Data engineering | Retry-safe daily processing, incremental Delta `MERGE`, late-arriving and malformed-record safeguards, user SCD2 history, and reconciliation across layers. |
+| Governance | Unity Catalog schema boundaries separate operational state, PII, analytical models, and governed observability data. |
+| DataOps agent | A read-only LangGraph workflow combines Lakeflow execution evidence, fixed observability queries, and at most two bounded Genie investigations. |
+| Command Center | Daily Health Review, one-click investigation, schema-validated reports, evidence expansion, recommendations, and authenticated invocation recovery. |
+
+The bounded V2.6 cloud acceptance demonstrated the complete operational path: **9 of 9 Lakeflow
+tasks passed**, while a separately retrieved health snapshot contained **48 monitoring checks —
+44 PASS, 4 WARN, and 0 FAIL**. One composite investigation used **two bounded Genie
+investigations** and produced **twelve evidence-linked recommendations**. This is the core DataOps
+lesson of the project: successful execution and healthy data are related, but they are not the same
+signal.
+
+Portfolio materials:
+
+- [Architecture and investigation contract](docs/dataops-agent-architecture.md)
+- [Two-to-three-minute narrated demo script](docs/portfolio-demo-script.md)
+- [Extended technical demo outline](docs/portfolio-demo.md)
+- [Data Engineer and AI Engineer resume bullets](docs/portfolio-resume-bullets.md)
+- [Live screenshot capture checklist](docs/portfolio-screenshot-checklist.md)
+
 ## Databricks V2 Architecture
 
 The current platform runs end to end on Databricks using Lakeflow Jobs,
