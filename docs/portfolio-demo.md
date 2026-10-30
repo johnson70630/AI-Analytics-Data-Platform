@@ -1,7 +1,10 @@
-# Portfolio Demo Outline
+# Extended Portfolio Demo Outline
 
 This 8–10 minute walkthrough demonstrates the platform as one system rather than a collection of
-isolated tools.
+isolated tools. For a recruiter-facing overview, use the
+[two-to-three-minute narrated script](portfolio-demo-script.md). The
+[screenshot checklist](portfolio-screenshot-checklist.md) defines which live visuals still need to
+be captured; no screenshot or footage is represented as complete by these documents.
 
 ## 1. Architecture and problem statement — 1 minute
 
