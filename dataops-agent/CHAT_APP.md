@@ -53,3 +53,17 @@ can be listed because there is no shared session index.
 
 Transcript responses include only user, assistant, tool, system, and human-decision message items;
 checkpoint fragments remain in Session Store but are never returned to the chat UI.
+
+## Daily Health Review
+
+The Daily Health Review is a read-only dashboard beside Chat. Initial load and manual Refresh use
+the Jobs API and fixed observability queries only; they do not invoke the model or Genie. Pipeline
+execution, monitoring status, monitoring execution time, monitoring reference time, and synthetic
+activity dates remain separate fields.
+
+**Run Full Investigation** submits the fixed composite LangGraph action directly and accepts only a
+validated schema `1.1` report. The browser retains only the active invocation ID, session ID,
+snapshot identity, and start time for reload recovery. Recovery uses an authenticated status `GET`
+for the same invocation and never creates a replacement request. The report viewer renders source
+availability, issues, bounded Genie evidence, recommendations, approval labels, and expandable raw
+evidence. External text and generated SQL are assigned as text rather than executable HTML.

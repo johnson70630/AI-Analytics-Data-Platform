@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import pytest
 
 from runtime.health import build_daily_health_summary
+from runtime.investigation import INVESTIGATION_ACTION
 
 
 NOW = datetime(2026, 10, 29, 18, 0, tzinfo=timezone.utc)
@@ -222,16 +223,17 @@ async def test_stale_monitoring_evidence_is_warned_without_changing_check_counts
 
 
 @pytest.mark.asyncio
-async def test_summary_is_read_only_and_future_investigation_is_disabled():
+async def test_summary_advertises_current_read_only_investigation_action_contract():
     result = await build_daily_health_summary(
         jobs_fetcher=_jobs,
         observability_fetcher=_observability,
         now=NOW,
     )
 
+    assert INVESTIGATION_ACTION == "generate_dataops_investigation_report"
     assert result["investigation"] == {
-        "enabled": False,
-        "status": "PLANNED_V2_6B",
-        "action": "generate_dataops_investigation_report",
+        "enabled": True,
+        "status": "AVAILABLE",
+        "action": INVESTIGATION_ACTION,
     }
     assert "write" not in str(result).lower()

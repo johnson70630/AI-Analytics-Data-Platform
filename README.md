@@ -171,6 +171,32 @@ Operational state is modeled into queryable tables:
 
 The current validated result is **16 reconciliation checks in PASS and 0 in FAIL**. A `WARN` is an anomaly or monitoring signal; it is not a pipeline failure. A `FAIL` means an actual reconciliation or validity rule failed.
 
+## DataOps AI Command Center
+
+The read-only DataOps AI Agent turns Lakeflow execution evidence and governed observability data into
+an operational workflow:
+
+- **Daily Health Review** reports the latest pipeline execution and monitoring snapshot without an
+  LLM or Genie call.
+- **One-click investigation** runs a deterministic LangGraph workflow that collects Jobs and
+  observability evidence, asks at most two bounded Genie questions when supported anomalies exist,
+  and returns a validated report with evidence-linked recommendations.
+- **Agent Bricks** hosts the Command Center and supplies managed Runtime and Session Stores for
+  invocation recovery and conversation history.
+
+The final V2.6 cloud acceptance used release
+`07377686d31d6d98b84c428c698d1abdc853f363`. The latest Lakeflow execution passed **9 of 9 tasks**,
+while its separately retrieved monitoring snapshot contained **48 checks: 44 PASS, 4 WARN, and
+0 FAIL**. The composite investigation completed with **two Genie investigations** and **twelve
+evidence-linked recommendations**. This distinction is intentional: successful pipeline execution
+does not mean every data-health check passed.
+
+The agent has no job-control, arbitrary-SQL, repair, email, or production-write tool. Proposed
+corrections remain advisory and explicitly identify when human approval would be required.
+
+See the [DataOps agent architecture](docs/dataops-agent-architecture.md) and
+[portfolio demo outline](docs/portfolio-demo.md).
+
 ## Databricks AI/BI
 
 The Databricks AI/BI dashboard has four pages:
@@ -262,6 +288,8 @@ V2 is not a rejection of V1; it applies the same tested data-engineering princip
 - Unity Catalog for schema-level RBAC
 - Serverless Jobs compute and Serverless SQL Warehouse
 - Databricks AI/BI for governed dashboards
+- Agent Bricks and LangGraph for the read-only DataOps application
+- Databricks Genie for bounded historical observability questions
 - AWS as the cloud foundation, with S3 retained as the historical migration source
 
 ### Legacy V1 components retained in the repository
@@ -298,6 +326,8 @@ src/data_generator/  shared deterministic generator and legacy V1 loaders
 src/data_quality/    historical S3 profiling utility
 tests/               Python unit and integration-focused tests
 
+dataops-agent/       read-only Agent Bricks + LangGraph DataOps application
+docs/                DataOps architecture and portfolio demo walkthrough
 airflow/             V1 Airflow DAG and local runtime
 superset/            V1 Superset configuration
 sql/                 V1 PostgreSQL security SQL
