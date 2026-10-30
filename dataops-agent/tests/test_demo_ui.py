@@ -1,9 +1,11 @@
 import pytest
 from fastapi.testclient import TestClient
+from starlette.requests import Request
 from runtime import ui
 
 from databricks_agentkit import DurableAgentServer
 from databricks_agentkit.runtime.auth import InvocationAuthPolicy
+from databricks_agentkit.runtime.auth import RequestAuthContext
 from databricks_agentkit.runtime.store import (
     RUNTIME_STORE_DATABASE_ENV,
     RUNTIME_STORE_LAKEBASE_BRANCH_ENV,
@@ -171,9 +173,15 @@ def test_demo_ui_routes(monkeypatch):
     assert 'id="runtime-transport"' in index.text
     assert 'id="runtime-session"' in index.text
     assert 'id="runtime-model"' in index.text
-    assert 'styles.css?v=7' in index.text
+    assert 'styles.css?v=8' in index.text
     assert 'conversations.js?v=1' in index.text
-    assert 'app.js?v=8' in index.text
+    assert 'app.js?v=9' in index.text
+    assert 'id="health-review-view"' in index.text
+    assert 'id="health-view-tab"' in index.text
+    assert 'id="health-refresh"' in index.text
+    assert 'id="run-full-investigation"' in index.text
+    assert 'data-investigation-action="generate_dataops_investigation_report"' in index.text
+    assert 'id="run-full-investigation"' in index.text and "disabled" in index.text
     conversation_script = client.get("/ui-assets/conversations.js")
     assert conversation_script.status_code == 200
     assert conversation_script.headers["cache-control"] == "no-store"
@@ -188,6 +196,10 @@ def test_demo_ui_routes(monkeypatch):
     assert "function renderModels(" in app_script.text
     assert 'demoUrl("/api/ui/config")' in app_script.text
     assert 'demoUrl("/api/demo/models")' in app_script.text
+    assert 'fetch("/api/ui/health-summary"' in app_script.text
+    assert 'credentials: "same-origin"' in app_script.text
+    assert "function renderHealthSummary(summary)" in app_script.text
+    assert "function setWorkspaceView(view)" in app_script.text
     assert 'fetch("/api/session/new"' not in app_script.text
     assert "/api/demo/sessions/${encodeURIComponent(sessionId)}/open" in app_script.text
     assert (
@@ -251,6 +263,9 @@ def test_demo_ui_routes(monkeypatch):
     assert "@media (max-width: 760px)" in styles
     assert "@media (max-width: 390px)" in styles
     assert ".message.error .message-content" in styles
+    assert ".health-review-view" in styles
+    assert ".health-card-grid" in styles
+    assert ".workspace-switcher" in styles
 
     config = client.get("/api/ui/config").json()
     assert config["session_id"] == "routing-session"
@@ -292,6 +307,49 @@ def test_demo_ui_routes(monkeypatch):
 
     assert client.post("/api/demo/memory/search", json={"query": "profile"}).status_code == 503
     assert client.post("/api/demo/sessions", json={"session_id": "ignored"}).status_code == 503
+
+
+def test_daily_health_route_is_no_store_and_uses_read_only_aggregator(monkeypatch):
+    calls = 0
+
+    async def summary():
+        nonlocal calls
+        calls += 1
+        return {
+            "schema_version": "1.0",
+            "overall_status": "PASS",
+            "pipeline": {"available": True, "status": "PASS"},
+            "monitoring": {"available": True, "status": "PASS"},
+        }
+
+    monkeypatch.setattr(ui, "_daily_health_summary", summary)
+    response = _client(monkeypatch).get("/api/ui/health-summary")
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["overall_status"] == "PASS"
+    assert calls == 1
+
+
+def test_daily_health_authentication_uses_agent_runtime_policy(monkeypatch):
+    closed = False
+
+    class FakeAuth:
+        def close(self):
+            nonlocal closed
+            closed = True
+
+    monkeypatch.setattr(
+        RequestAuthContext,
+        "from_headers",
+        lambda _headers: FakeAuth(),
+    )
+    app = type("App", (), {"auth_policy": type("Policy", (), {"requires_user": True})()})()
+    request = Request({"type": "http", "headers": []})
+
+    ui._require_authenticated_request(app, request)
+
+    assert closed is True
 
 
 @pytest.mark.parametrize(

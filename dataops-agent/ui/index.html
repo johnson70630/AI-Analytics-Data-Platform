@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
     <title>DataOps AI Command Center</title>
-    <link rel="stylesheet" href="/ui-assets/styles.css?v=7" />
+    <link rel="stylesheet" href="/ui-assets/styles.css?v=8" />
   </head>
   <body>
     <div class="app-shell">
@@ -18,6 +18,10 @@
           </div>
         </div>
         <div class="header-actions">
+          <div class="workspace-switcher" role="tablist" aria-label="Command Center view">
+            <button id="chat-view-tab" class="workspace-tab active" type="button" role="tab" aria-selected="true" aria-controls="chat-view">Chat</button>
+            <button id="health-view-tab" class="workspace-tab" type="button" role="tab" aria-selected="false" aria-controls="health-review-view">Daily Review</button>
+          </div>
           <button id="sidebar-toggle" class="header-toggle" type="button" aria-label="Toggle conversations panel" aria-controls="left-rail" aria-expanded="true">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
             <span>Conversations</span>
@@ -200,7 +204,103 @@
           </div>
         </aside>
 
-        <section class="chat-panel" aria-label="Agent chat">
+        <section id="health-review-view" class="health-review-view" aria-label="Daily Health Review" hidden>
+          <div class="health-review-scroll">
+            <div class="health-review-header">
+              <div>
+                <p class="eyebrow">Read-only operational summary</p>
+                <h2>Daily Health Review</h2>
+                <p>Latest pipeline execution and configured monitoring checks, reported as separate evidence sources.</p>
+              </div>
+              <div class="health-review-actions">
+                <button
+                  id="run-full-investigation"
+                  class="secondary-button"
+                  type="button"
+                  data-investigation-action="generate_dataops_investigation_report"
+                  title="Full investigation will be connected in V2.6B"
+                  disabled
+                >Run Full Investigation <span>V2.6B</span></button>
+                <button id="health-refresh" class="primary-button" type="button">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            <div id="health-state" class="health-state" role="status" aria-live="polite">
+              Open the review to retrieve the latest read-only evidence.
+            </div>
+
+            <div class="health-card-grid">
+              <article class="health-card" aria-labelledby="pipeline-health-heading">
+                <div class="health-card-head">
+                  <div>
+                    <p class="eyebrow">Execution health</p>
+                    <h3 id="pipeline-health-heading">Lakeflow pipeline</h3>
+                  </div>
+                  <span id="pipeline-health-status" class="health-badge neutral">Not loaded</span>
+                </div>
+                <dl class="health-facts">
+                  <div><dt>Latest run</dt><dd id="pipeline-run-value">—</dd></div>
+                  <div><dt>Completed</dt><dd id="pipeline-completed-value">—</dd></div>
+                  <div><dt>Tasks</dt><dd id="pipeline-task-value">—</dd></div>
+                  <div><dt>Unsuccessful</dt><dd id="pipeline-failed-value">—</dd></div>
+                </dl>
+              </article>
+
+              <article class="health-card" aria-labelledby="monitoring-health-heading">
+                <div class="health-card-head">
+                  <div>
+                    <p class="eyebrow">Data health</p>
+                    <h3 id="monitoring-health-heading">Observability checks</h3>
+                  </div>
+                  <span id="monitoring-health-status" class="health-badge neutral">Not loaded</span>
+                </div>
+                <div class="check-counts" aria-label="Monitoring check counts">
+                  <div><strong id="health-pass-count">—</strong><span>PASS</span></div>
+                  <div><strong id="health-warn-count">—</strong><span>WARN</span></div>
+                  <div><strong id="health-fail-count">—</strong><span>FAIL</span></div>
+                  <div><strong id="health-total-count">—</strong><span>TOTAL</span></div>
+                </div>
+              </article>
+
+              <article class="health-card health-time-card" aria-labelledby="health-time-heading">
+                <div class="health-card-head">
+                  <div>
+                    <p class="eyebrow">Evidence timing</p>
+                    <h3 id="health-time-heading">Monitoring context</h3>
+                  </div>
+                  <span id="health-stale-status" class="health-badge neutral">Unknown</span>
+                </div>
+                <dl class="health-facts">
+                  <div><dt>Freshness monitor executed</dt><dd id="monitoring-run-value">—</dd></div>
+                  <div><dt>Monitoring reference</dt><dd id="monitoring-reference-value">—</dd></div>
+                  <div><dt>Synthetic reference date</dt><dd id="synthetic-reference-value">—</dd></div>
+                  <div><dt>Pipeline association</dt><dd id="pipeline-association-value">Unverified</dd></div>
+                </dl>
+              </article>
+            </div>
+
+            <section class="health-issues" aria-labelledby="health-issues-heading">
+              <div class="health-section-head">
+                <div>
+                  <p class="eyebrow">Retrieved evidence</p>
+                  <h3 id="health-issues-heading">Warnings and failures</h3>
+                </div>
+                <span id="health-generated-value">Not refreshed</span>
+              </div>
+              <div id="health-source-errors" class="health-source-errors" hidden></div>
+              <div id="health-issue-list" class="health-issue-list">
+                <div class="state-empty">Refresh to load configured monitoring checks.</div>
+              </div>
+            </section>
+
+            <p class="health-boundary-note">A successful Lakeflow run does not imply all monitoring checks passed. Monitoring timestamps and synthetic reference dates are intentionally shown separately.</p>
+          </div>
+        </section>
+
+        <section id="chat-view" class="chat-panel" aria-label="Agent chat">
           <div class="chat-header">
             <div class="chat-heading">
               <p class="eyebrow">AI operations workspace</p>
@@ -335,6 +435,6 @@
 
     <script src="/ui-assets/markdown-it-15.0.2.min.js" defer></script>
     <script src="/ui-assets/conversations.js?v=1" defer></script>
-    <script src="/ui-assets/app.js?v=8" defer></script>
+    <script src="/ui-assets/app.js?v=9" defer></script>
   </body>
 </html>
