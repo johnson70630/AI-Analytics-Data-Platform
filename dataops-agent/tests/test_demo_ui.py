@@ -173,16 +173,21 @@ def test_demo_ui_routes(monkeypatch):
     assert 'id="runtime-transport"' in index.text
     assert 'id="runtime-session"' in index.text
     assert 'id="runtime-model"' in index.text
-    assert 'styles.css?v=8' in index.text
+    assert 'styles.css?v=9' in index.text
     assert 'conversations.js?v=1' in index.text
-    assert 'investigation.js?v=1' in index.text
-    assert 'app.js?v=10' in index.text
+    assert 'investigation.js?v=2' in index.text
+    assert 'app.js?v=11' in index.text
     assert 'id="health-review-view"' in index.text
     assert 'id="health-view-tab"' in index.text
     assert 'id="health-refresh"' in index.text
     assert 'id="run-full-investigation"' in index.text
     assert 'data-investigation-action="generate_dataops_investigation_report"' in index.text
     assert 'id="investigation-result"' in index.text
+    assert 'id="investigation-report-viewer"' in index.text
+    assert 'id="report-source-availability"' in index.text
+    assert 'id="report-genie-list"' in index.text
+    assert 'id="report-recommendation-groups"' in index.text
+    assert 'id="report-evidence-list"' in index.text
     conversation_script = client.get("/ui-assets/conversations.js")
     assert conversation_script.status_code == 200
     assert conversation_script.headers["cache-control"] == "no-store"
@@ -194,6 +199,9 @@ def test_demo_ui_routes(monkeypatch):
     assert investigation_script.headers["cache-control"] == "no-store"
     assert "function validateReport(report)" in investigation_script.text
     assert "function canStart(" in investigation_script.text
+    assert "function fullViewModel(report)" in investigation_script.text
+    assert "function serializeRecoveryState(" in investigation_script.text
+    assert "function parseRecoveryState(" in investigation_script.text
     app_script = client.get("/ui-assets/app.js")
     assert app_script.status_code == 200
     assert app_script.headers["cache-control"] == "no-store"
@@ -212,6 +220,18 @@ def test_demo_ui_routes(monkeypatch):
     assert "investigation.canStart" in app_script.text
     assert "pollInvestigation(invocationId, sessionId)" in app_script.text
     assert "headers: routingHeaders(sessionId)" in app_script.text
+    assert "function recoverActiveInvestigation()" in app_script.text
+    assert "function renderFullInvestigationReport(report)" in app_script.text
+    assert "sessionStorage.setItem(INVESTIGATION_RECOVERY_STORAGE_KEY" in app_script.text
+    assert "sql.textContent = query.generated_sql" in app_script.text
+    assert "pre.textContent = JSON.stringify(value, null, 2)" in app_script.text
+    recovery_body = app_script.text.split("async function recoverActiveInvestigation()", 1)[1].split(
+        "async function runFullInvestigation()", 1
+    )[0]
+    assert "fetch(`/api/invocations/${encodeURIComponent(recovery.invocation_id)}`" in recovery_body
+    assert 'credentials: "same-origin"' in recovery_body
+    assert "headers: routingHeaders(recovery.session_id)" in recovery_body
+    assert 'method: "POST"' not in recovery_body
     assert 'fetch("/api/session/new"' not in app_script.text
     assert "/api/demo/sessions/${encodeURIComponent(sessionId)}/open" in app_script.text
     assert (
@@ -278,6 +298,10 @@ def test_demo_ui_routes(monkeypatch):
     assert ".health-review-view" in styles
     assert ".health-card-grid" in styles
     assert ".workspace-switcher" in styles
+    assert ".report-viewer" in styles
+    assert ".report-executive-grid" in styles
+    assert ".report-card pre" in styles
+    assert ".report-time-grid" in styles
 
     config = client.get("/api/ui/config").json()
     assert config["session_id"] == "routing-session"
