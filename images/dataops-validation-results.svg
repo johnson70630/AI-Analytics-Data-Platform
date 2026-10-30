@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="560" viewBox="0 0 2400 560" role="img" aria-labelledby="title description">
+  <title id="title">DataOps V2.6 cloud acceptance results</title>
+  <desc id="description">Nine of nine Lakeflow tasks succeeded. Forty-eight monitoring checks produced forty-four passes, four warnings, and zero failures. Two bounded Genie investigations supported twelve evidence-linked recommendations.</desc>
+  <defs>
+    <style>
+      .title { fill: #f0f9ff; font: 700 42px Inter, ui-sans-serif, system-ui, sans-serif; }
+      .subtitle { fill: #9fb3c8; font: 400 22px Inter, ui-sans-serif, system-ui, sans-serif; }
+      .value { fill: #f8fbff; font: 700 58px Inter, ui-sans-serif, system-ui, sans-serif; text-anchor: middle; }
+      .label { fill: #dce9f5; font: 600 24px Inter, ui-sans-serif, system-ui, sans-serif; text-anchor: middle; }
+      .note { fill: #8ea4bb; font: 400 18px Inter, ui-sans-serif, system-ui, sans-serif; }
+      .card { stroke-width: 3; rx: 22; }
+    </style>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000814" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="2400" height="560" fill="#07111f"/>
+  <text class="title" x="64" y="70">Validated cloud acceptance</text>
+  <text class="subtitle" x="64" y="112">Execution success and monitored data health remain separate signals</text>
+
+  <g filter="url(#shadow)">
+    <rect class="card" x="64" y="158" width="300" height="260" fill="#102a42" stroke="#38bdf8"/>
+    <text class="value" x="214" y="266">9 / 9</text>
+    <text class="label" x="214" y="322">Lakeflow tasks</text>
+    <text class="note" x="96" y="374">execution</text>
+
+    <rect class="card" x="388" y="158" width="300" height="260" fill="#102a42" stroke="#38bdf8"/>
+    <text class="value" x="538" y="266">48</text>
+    <text class="label" x="538" y="312">monitoring</text>
+    <text class="label" x="538" y="346">checks</text>
+    <text class="note" x="420" y="390">observed snapshot</text>
+
+    <rect class="card" x="712" y="158" width="300" height="260" fill="#12362d" stroke="#34d399"/>
+    <text class="value" x="862" y="266">44</text>
+    <text class="label" x="862" y="326">PASS</text>
+    <text class="note" x="744" y="374">monitored checks</text>
+
+    <rect class="card" x="1036" y="158" width="300" height="260" fill="#422f12" stroke="#fbbf24"/>
+    <text class="value" x="1186" y="266">4</text>
+    <text class="label" x="1186" y="326">WARN</text>
+    <text class="note" x="1068" y="374">investigate</text>
+
+    <rect class="card" x="1360" y="158" width="300" height="260" fill="#3b1f28" stroke="#fb7185"/>
+    <text class="value" x="1510" y="266">0</text>
+    <text class="label" x="1510" y="326">FAIL</text>
+    <text class="note" x="1392" y="374">monitored checks</text>
+
+    <rect class="card" x="1684" y="158" width="300" height="260" fill="#291e48" stroke="#a78bfa"/>
+    <text class="value" x="1834" y="266">2</text>
+    <text class="label" x="1834" y="312">Genie</text>
+    <text class="label" x="1834" y="346">investigations</text>
+    <text class="note" x="1716" y="390">bounded queries</text>
+
+    <rect class="card" x="2008" y="158" width="300" height="260" fill="#291e48" stroke="#a78bfa"/>
+    <text class="value" x="2158" y="266">12</text>
+    <text class="label" x="2158" y="312">evidence-linked</text>
+    <text class="label" x="2158" y="346">recommendations</text>
+    <text class="note" x="2040" y="390">P0–P3 advisory</text>
+  </g>
+
+  <text class="note" x="64" y="500">V2.6 bounded acceptance run · WARN indicates investigation required, not pipeline failure</text>
+</svg>
