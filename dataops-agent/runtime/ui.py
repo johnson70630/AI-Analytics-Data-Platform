@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -313,6 +314,24 @@ async def _checkpoint_history(session_id: str, actor: str) -> dict[str, Any]:
     return await read_history(session_id, actor)
 
 
+async def _daily_health_summary() -> dict[str, Any]:
+    """Load dashboard evidence lazily so importing the UI performs no workspace calls."""
+    from runtime.health import build_daily_health_summary
+
+    return await build_daily_health_summary()
+
+
+def _require_authenticated_request(app: FastAPI, request: Request) -> None:
+    """Validate deployed app identity headers while keeping local development usable."""
+    if not app.auth_policy.requires_user:
+        return
+
+    from databricks_agentkit.runtime.auth import RequestAuthContext
+
+    auth = RequestAuthContext.from_headers(request.headers)
+    auth.close()
+
+
 def _chat_sessions(result: dict[str, Any]) -> list[dict[str, Any]]:
     sessions = []
     for session in result.get("sessions", []):
@@ -397,6 +416,12 @@ def install_ui(app: FastAPI) -> None:
             },
             "tracing": _tracing(),
         }
+
+    @app.get("/api/ui/health-summary", include_in_schema=False)
+    async def daily_health_summary(request: Request) -> JSONResponse:
+        _require_authenticated_request(app, request)
+        result = await _daily_health_summary()
+        return JSONResponse(jsonable_encoder(result), headers={"Cache-Control": "no-store"})
 
     @app.get("/api/demo/models", include_in_schema=False)
     async def demo_models() -> dict:
