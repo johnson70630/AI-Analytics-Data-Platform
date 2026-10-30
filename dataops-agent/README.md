@@ -6,8 +6,9 @@ observability evidence without exposing arbitrary SQL, job control, repair, back
 delivery capabilities.
 
 During `agentbricks dev`, invocation state and events are process-local. Deployment attaches the
-configured Runtime, Session, and Memory stores so the managed application can provide durable
-invocations and conversation state according to the Agent Bricks runtime contract.
+managed Runtime Store and configured Session Store so the application can provide durable
+invocations and conversation state according to the Agent Bricks runtime contract. The current
+release intentionally has no Memory Store binding.
 
 The generated project separates portable agent execution from the managed HTTP protocol:
 
@@ -30,10 +31,55 @@ The automatically discovered LangChain tools are:
 - `get_latest_pipeline_run` for narrow Lakeflow execution-health questions.
 - `get_latest_observability_summary` for the latest deterministic observability snapshot.
 - `ask_genie_observability` for flexible historical observability questions.
-- `generate_dataops_investigation_report` for the full V2.2 investigation and recommendation flow.
+- `generate_dataops_investigation_report` for the full investigation and recommendation flow.
 
 The V2.3A/B incident lifecycle and Delta outbox are standalone libraries. They are not registered as
 agent tools, are not scheduled, and have no live email provider on this deployable branch.
+
+## Daily Health Review and one-click investigation
+
+The Command Center provides two related but separate paths:
+
+- Daily Health Review calls the Jobs API and fixed observability SQL only. Opening or refreshing the
+  dashboard does not invoke the model or Genie.
+- Run Full Investigation calls the fixed `generate_dataops_investigation_report` action directly.
+  It does not ask the chat model to choose a tool. The existing LangGraph workflow collects evidence,
+  conditionally runs at most two bounded Genie investigations, creates deterministic advisory
+  recommendations, and validates the response as `InvestigationReportV11` (`schema_version=1.1`).
+
+Browser-supplied health context is an untrusted display label and never becomes investigation
+evidence. Runtime Store invocation IDs provide idempotency and reload recovery; status polling is
+authenticated and scoped to the request owner. Reload recovery performs a `GET` for the same
+invocation and never submits a replacement investigation.
+
+## V2.6 cloud acceptance
+
+Release `07377686d31d6d98b84c428c698d1abdc853f363` passed a bounded acceptance test against the
+existing one-Medium Databricks App and was stopped immediately afterward.
+
+| Signal | Accepted result |
+|---|---:|
+| Lakeflow tasks | 9 PASS / 0 FAIL |
+| Monitoring checks | 48 total: 44 PASS / 4 WARN / 0 FAIL |
+| Genie investigations | 2 |
+| Evidence-linked recommendations | 12 |
+| Composite invocation POSTs | 1 |
+| Report schema | 1.1 |
+
+Pipeline execution and data health are deliberately reported independently. The accepted Lakeflow
+run succeeded, but the monitoring snapshot still contained four warnings. The application retained
+an `UNVERIFIED` pipeline-to-monitoring association and kept root cause and business impact unknown
+because the retrieved evidence did not establish either conclusion.
+
+Remaining limitations:
+
+- There is no authoritative shared key linking a monitoring snapshot to a particular Lakeflow run.
+- MLflow trace metadata persists, but span artifact upload is blocked by workspace-storage network
+  connectivity and remains a Databricks support item.
+- Deployed HTML, CSS, API, and responsive breakpoints were validated, but pixel-level real-browser
+  visual acceptance remains outstanding.
+- System billing ingestion lags the validation window, so App/model/warehouse usage does not yet
+  provide reliable isolated USD cost attribution.
 
 ## Run locally
 

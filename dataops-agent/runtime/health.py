@@ -11,6 +11,7 @@ from typing import Any
 
 from agent.tools.jobs import fetch_latest_pipeline_run
 from agent.tools.observability import fetch_latest_observability_summary
+from runtime.investigation import INVESTIGATION_ACTION
 
 HealthFetcher = Callable[[], dict[str, Any]]
 
@@ -314,8 +315,8 @@ async def build_daily_health_summary(
             "The reconciliation source is a current snapshot and does not expose its own monitoring timestamp.",
         ],
         "investigation": {
-            "enabled": False,
-            "status": "PLANNED_V2_6B",
-            "action": "generate_dataops_investigation_report",
+            "enabled": True,
+            "status": "AVAILABLE",
+            "action": INVESTIGATION_ACTION,
         },
     }
