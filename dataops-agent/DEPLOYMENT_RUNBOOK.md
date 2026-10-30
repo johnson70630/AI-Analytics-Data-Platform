@@ -1,16 +1,32 @@
 # DataOps Agent deployment runbook
 
-This runbook prepares the first controlled deployment of `agent-bricks-dataops-agent`. Commands in
-this document require an explicit deployment approval; source validation alone does not authorize
-resource creation, permission grants, or live model and tool calls.
+This runbook governs controlled deployment and redeployment of `agent-bricks-dataops-agent`.
+Commands in this document require explicit deployment approval; source validation alone does not
+authorize resource creation, permission grants, or live model and tool calls.
+
+## Accepted baseline
+
+V2.6 release `07377686d31d6d98b84c428c698d1abdc853f363` passed bounded cloud acceptance on the existing
+one-Medium App and finished with App compute confirmed `STOPPED`.
+
+- Lakeflow execution: 9 of 9 tasks passed.
+- Monitoring: 48 checks, including 44 PASS, 4 WARN, and 0 FAIL.
+- Composite investigation: one POST, two bounded Genie investigations, and twelve evidence-linked
+  recommendations in a validated schema `1.1` report.
+- Security: Job `CAN VIEW`, Warehouse `CAN USE`, Genie `CAN RUN`, and `SELECT` on the four
+  observability tables; no job-control, repair, or production-write tool was exposed.
+
+Execution success and monitored data health are separate acceptance signals. The successful job did
+not override the four monitoring warnings. Pipeline-to-monitoring association remains unverified.
 
 ## Approval gate
 
 Before running `agentbricks deploy`, confirm all of the following:
 
 - The reviewed source is the approved release revision and `agentbricks doctor .` passes.
-- Creation of the Databricks App, its dedicated service principal, Runtime Store, Session Store,
-  MLflow experiment, and Unity Gateway model service is authorized.
+- Creation or reuse of the Databricks App, its dedicated service principal, Runtime Store, Session
+  Store, MLflow experiment, and Unity Gateway model service is explicitly authorized for that
+  release.
 - The deployer can create or manage those declared resources and grant the app service principal
   access to them.
 - The non-secret Job, Warehouse, and Genie identifiers in `app.yaml` are still the approved targets.
@@ -18,10 +34,11 @@ Before running `agentbricks deploy`, confirm all of the following:
 - No email, alerting schedule, Lakeflow job control, incident-persistence write, or repair capability
   is enabled.
 
-## Approved resource-creation scope
+## Approved resource scope
 
-The initial deployment is limited to one default Medium App instance and these Agent Bricks-managed
-resources:
+The validated deployment uses one Medium App instance and these existing Agent Bricks-managed
+resources. A future deployment must stop if it requests an unapproved replacement or additional
+resource:
 
 - Databricks App `agent-bricks-dataops-agent` and its dedicated service principal.
 - The App's dedicated managed Runtime Store.
@@ -34,7 +51,7 @@ resources:
 A Memory Store is not declared for this release. The deployment must not create alerting tables,
 jobs, schedules, email resources, or another Genie Agent or SQL Warehouse.
 
-## Stage 1: provision without user traffic
+## Stage 1: deploy or reconcile without validation traffic
 
 From the release worktree's `dataops-agent/` directory:
 
@@ -46,9 +63,9 @@ agentbricks --profile ai-analytics-dev deployments get agent-bricks-dataops-agen
 agentbricks --profile ai-analytics-dev deployments stop agent-bricks-dataops-agent --yes
 ```
 
-Stopping the App after initial provisioning prevents validation traffic while the dedicated app
-service principal receives the manual resource grants below. Do not delete the deployment or its
-managed stores during failure investigation.
+Stopping the App after reconciliation prevents validation traffic while the dedicated app service
+principal permissions are reviewed. Do not delete the deployment or its managed stores during
+failure investigation.
 
 ## Stage 2: least-privilege grants
 
@@ -94,6 +111,11 @@ conversation; and the resulting MLflow trace. Memory validation is intentionally
 Memory Store is bound for this release. Confirm each of the four custom tools is selected exactly
 once for its matching test request and that no write, email, alerting, or job-control tool appears.
 
+For Daily Health Review releases, additionally verify that initial load and manual Refresh create no
+LLM or Genie trace, submit at most the explicitly authorized number of composite investigations,
+validate report schema `1.1`, and recover the same Runtime Store invocation ID after reload without a
+second POST.
+
 After the bounded validation, stop the App while deployment findings and costs are reviewed:
 
 ```bash
@@ -105,6 +127,11 @@ Record App instance-hours, SQL Warehouse DBUs, model-inference usage, managed da
 usage, and MLflow trace storage from the deployment window. Reconcile the observed SKUs with
 `system.billing.usage` and the effective prices in `system.billing.list_prices`. Confirm the App is
 stopped and the existing SQL Warehouse returns to its configured stopped state after auto-stop.
+
+Billing ingestion can lag the test window; report unavailable cost attribution rather than assigning
+workspace-level usage to the App without evidence. MLflow trace metadata currently persists while
+span artifact upload fails at the workspace-storage network boundary. Keep that networking defect
+separate from functional acceptance and do not deploy the synchronous tracing diagnostic override.
 
 ## Failure containment and rollback
 
