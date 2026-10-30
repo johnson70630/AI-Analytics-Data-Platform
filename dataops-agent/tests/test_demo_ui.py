@@ -173,15 +173,18 @@ def test_demo_ui_routes(monkeypatch):
     assert 'id="runtime-transport"' in index.text
     assert 'id="runtime-session"' in index.text
     assert 'id="runtime-model"' in index.text
-    assert 'styles.css?v=9' in index.text
+    assert 'styles.css?v=12' in index.text
     assert 'conversations.js?v=1' in index.text
     assert 'investigation.js?v=2' in index.text
-    assert 'app.js?v=11' in index.text
+    assert 'workspace.js?v=1' in index.text
+    assert 'app.js?v=12' in index.text
+    assert '<body data-workspace-view="chat">' in index.text
     assert 'id="health-review-view"' in index.text
     assert 'id="health-view-tab"' in index.text
     assert 'id="health-refresh"' in index.text
     assert 'id="run-full-investigation"' in index.text
     assert 'data-investigation-action="generate_dataops_investigation_report"' in index.text
+    assert "Refresh health to investigate" in index.text
     assert 'id="investigation-result"' in index.text
     assert 'id="investigation-report-viewer"' in index.text
     assert 'id="report-source-availability"' in index.text
@@ -214,6 +217,9 @@ def test_demo_ui_routes(monkeypatch):
     assert 'credentials: "same-origin"' in app_script.text
     assert "function renderHealthSummary(summary)" in app_script.text
     assert "function setWorkspaceView(view)" in app_script.text
+    assert "workspaceController.applyWorkspaceView(elements, view, document.body)" in app_script.text
+    assert "workspaceController.investigationActionState" in app_script.text
+    assert 'setAttribute("aria-label", `${label}. ${explanation}`)' in app_script.text
     assert "function runFullInvestigation()" in app_script.text
     assert 'action: elements.runFullInvestigation.dataset.investigationAction' in app_script.text
     assert 'background: true' in app_script.text
@@ -302,6 +308,15 @@ def test_demo_ui_routes(monkeypatch):
     assert ".report-executive-grid" in styles
     assert ".report-card pre" in styles
     assert ".report-time-grid" in styles
+    assert 'grid-template-areas: "sidebar main"' in styles
+    assert ".chat-panel[hidden],\n.health-review-view[hidden]" in styles
+    assert "display: none !important" in styles
+    assert "height: calc(100dvh - 98px)" in styles
+
+    workspace_script = client.get("/ui-assets/workspace.js")
+    assert workspace_script.status_code == 200
+    assert workspace_script.headers["cache-control"] == "no-store"
+    assert "function applyWorkspaceView(elements, view, rootElement)" in workspace_script.text
 
     config = client.get("/api/ui/config").json()
     assert config["session_id"] == "routing-session"
