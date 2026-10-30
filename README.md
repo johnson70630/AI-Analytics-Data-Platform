@@ -21,6 +21,8 @@ investigations** and produced **twelve evidence-linked recommendations**. This i
 lesson of the project: successful execution and healthy data are related, but they are not the same
 signal.
 
+![V2.6 cloud acceptance results](images/dataops-validation-results.svg)
+
 Portfolio materials:
 
 - [Architecture and investigation contract](docs/dataops-agent-architecture.md)
@@ -34,7 +36,10 @@ Portfolio materials:
 The current platform runs end to end on Databricks using Lakeflow Jobs,
 serverless compute, Delta Lake, dbt-databricks, Unity Catalog, and AI/BI.
 
-![AI Analytics Data Platform — Databricks V2](images/AI%20Analytics%20Data%20Platform%20Architecture.png)
+[![AI Analytics Data Platform — Databricks V2](images/AI%20Analytics%20Data%20Platform%20Architecture.svg)](images/AI%20Analytics%20Data%20Platform%20Architecture.svg)
+
+The same architecture is maintained as an editable
+[Mermaid workflow source](images/AI%20Analytics%20Data%20Platform%20Architecture.mmd).
 
 
 ### Platform responsibilities

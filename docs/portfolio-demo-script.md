@@ -4,6 +4,9 @@ Target length: 2–3 minutes. This script uses results recorded during the bound
 acceptance. It does not imply that the Databricks App is currently running or that the matching
 browser footage has already been captured.
 
+Supporting visuals: [end-to-end architecture](../images/AI%20Analytics%20Data%20Platform%20Architecture.svg)
+and [validated-results infographic](../images/dataops-validation-results.svg).
+
 ## 0:00–0:30 — Platform and problem
 
 “This project is a Databricks-native analytics platform for a synthetic AI chatbot product. A

@@ -1,0 +1,65 @@
+%%{init: {"theme":"base","themeVariables":{"background":"#07111f","primaryColor":"#10263c","primaryTextColor":"#e6f4ff","primaryBorderColor":"#2dd4ff","lineColor":"#8194aa","secondaryColor":"#15332f","tertiaryColor":"#251d46","fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fontSize":"16px"},"flowchart":{"defaultRenderer":"elk","htmlLabels":true,"curve":"basis","nodeSpacing":28,"rankSpacing":44,"padding":16}}}%%
+flowchart TB
+    subgraph PLATFORM["DAILY DATA PLATFORM · SCHEDULED"]
+        direction LR
+        EVENTS["Synthetic product, model<br/>and finance events"] --> LF["Lakeflow Jobs<br/>daily orchestration"]
+        LF --> GEN["Deterministic Python / Spark<br/>generator + clean source state"]
+        GEN --> BRONZE["Delta Bronze<br/>append-only records"]
+        BRONZE --> STAGING["dbt Staging<br/>typed + deduplicated"]
+        STAGING --> SILVER["Silver<br/>dimensions · SCD2 · facts"]
+        SILVER --> GOLD["Gold<br/>business marts"]
+        GOLD --> AIBI["Databricks AI/BI"]
+        STAGING --> OBS["Observability<br/>freshness · volume · quality · reconciliation"]
+        SILVER --> OBS
+        GOLD --> OBS
+        UC["Unity Catalog<br/>governance · PII · least privilege"] -. "governs" .-> BRONZE
+        LF --> OUT["Execution metadata +<br/>observability checks"]
+        OBS --> OUT
+    end
+
+    OUT --> EVIDENCE["READ-ONLY EVIDENCE<br/>Jobs API + fixed observability SQL<br/>run ↔ monitoring association remains UNVERIFIED"]
+
+    subgraph DATAOPS["DATAOPS EXPERIENCE · USER TRIGGERED"]
+        direction LR
+        IN["Operational evidence"] --> HEALTH["Daily Health Review<br/>Manual Refresh · no LLM or Genie"]
+        IN --> GRAPH["LangGraph investigation<br/>parallel evidence collection"]
+
+        USER["DataOps user"] --> CMD["DataOps AI<br/>Command Center"]
+        CMD --> HEALTH
+        CMD -->|"Chat"| MODEL["GPT OSS 120B<br/>declared model service"]
+        MODEL --> TOOLS["Four read-only tools<br/>get_latest_pipeline_run<br/>get_latest_observability_summary<br/>ask_genie_observability<br/>generate_dataops_investigation_report"]
+        CMD -->|"Run Full Investigation<br/>one user action"| COMPOSITE["generate_dataops_<br/>investigation_report"]
+        TOOLS -. "same fixed tool" .-> COMPOSITE
+        COMPOSITE --> GRAPH
+        GRAPH -->|"0–2 bounded questions"| GENIE["Databricks Genie<br/>historical queries"]
+        GENIE --> RECS["Deterministic P0–P3<br/>evidence-linked recommendations"]
+        GRAPH --> RECS
+        RECS --> REPORT["InvestigationReport v1.1<br/>unknowns + approval labels"]
+        REPORT --> VIEWER["Evidence-rich<br/>report viewer"]
+
+        RUNTIME["Runtime Store<br/>invocation recovery"] --> AB["Agent Bricks runtime"]
+        SESSION["Session Store<br/>conversation state"] --> AB
+        AB --> CMD
+        AB --> MLFLOW["MLflow tracing<br/>metadata recorded"]
+    end
+
+    EVIDENCE --> IN
+
+    classDef source fill:#0d2237,stroke:#2dd4ff,color:#e6f4ff,stroke-width:2px;
+    classDef transform fill:#142c43,stroke:#60a5fa,color:#eff8ff,stroke-width:1.5px;
+    classDef governed fill:#15332f,stroke:#34d399,color:#eafff8,stroke-width:1.5px;
+    classDef agent fill:#251d46,stroke:#a78bfa,color:#f4f0ff,stroke-width:1.5px;
+    classDef warning fill:#402b13,stroke:#fbbf24,color:#fff7df,stroke-width:1.5px;
+    classDef report fill:#38233b,stroke:#f472b6,color:#fff0fa,stroke-width:2px;
+    classDef store fill:#17243a,stroke:#94a3b8,color:#eef4ff,stroke-width:1.5px;
+
+    class EVENTS,LF,GEN source;
+    class BRONZE,STAGING,SILVER,GOLD transform;
+    class UC,OBS,AIBI governed;
+    class USER,CMD,HEALTH,MODEL,TOOLS,COMPOSITE,GRAPH,GENIE,RECS,VIEWER agent;
+    class EVIDENCE warning;
+    class REPORT report;
+    class AB,RUNTIME,SESSION,MLFLOW,OUT,IN store;
+
+    style PLATFORM fill:#091726,stroke:#2dd4ff,stroke-width:2px,color:#dff7ff
+    style DATAOPS fill:#110f26,stroke:#a78bfa,stroke-width:2px,color:#f4f0ff
