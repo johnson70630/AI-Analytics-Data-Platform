@@ -61,6 +61,30 @@ const elements = {
   memoryModalClose: document.querySelector("#memory-modal-close"),
   sidebarToggle: document.querySelector("#sidebar-toggle"),
   evidenceToggle: document.querySelector("#evidence-toggle"),
+  chatView: document.querySelector("#chat-view"),
+  chatViewTab: document.querySelector("#chat-view-tab"),
+  healthView: document.querySelector("#health-review-view"),
+  healthViewTab: document.querySelector("#health-view-tab"),
+  healthRefresh: document.querySelector("#health-refresh"),
+  healthState: document.querySelector("#health-state"),
+  pipelineHealthStatus: document.querySelector("#pipeline-health-status"),
+  pipelineRunValue: document.querySelector("#pipeline-run-value"),
+  pipelineCompletedValue: document.querySelector("#pipeline-completed-value"),
+  pipelineTaskValue: document.querySelector("#pipeline-task-value"),
+  pipelineFailedValue: document.querySelector("#pipeline-failed-value"),
+  monitoringHealthStatus: document.querySelector("#monitoring-health-status"),
+  healthPassCount: document.querySelector("#health-pass-count"),
+  healthWarnCount: document.querySelector("#health-warn-count"),
+  healthFailCount: document.querySelector("#health-fail-count"),
+  healthTotalCount: document.querySelector("#health-total-count"),
+  healthStaleStatus: document.querySelector("#health-stale-status"),
+  monitoringRunValue: document.querySelector("#monitoring-run-value"),
+  monitoringReferenceValue: document.querySelector("#monitoring-reference-value"),
+  syntheticReferenceValue: document.querySelector("#synthetic-reference-value"),
+  pipelineAssociationValue: document.querySelector("#pipeline-association-value"),
+  healthGeneratedValue: document.querySelector("#health-generated-value"),
+  healthSourceErrors: document.querySelector("#health-source-errors"),
+  healthIssueList: document.querySelector("#health-issue-list"),
   runtimeTransport: document.querySelector("#runtime-transport"),
   runtimeSession: document.querySelector("#runtime-session"),
   runtimeModel: document.querySelector("#runtime-model"),
@@ -113,6 +137,8 @@ const state = {
   pendingInterrupt: null,
   pendingInterruptSessionId: "",
   sessionId: initialSessionId,
+  healthLoaded: false,
+  healthLoading: false,
 };
 
 function ensureSessionId() {
@@ -1423,6 +1449,172 @@ async function loadModels() {
   renderModels(await jsonResponse(response));
 }
 
+function healthTone(status) {
+  const normalized = String(status || "UNKNOWN").toUpperCase();
+  if (normalized === "PASS" || normalized === "CURRENT") return "success";
+  if (normalized === "WARN" || normalized === "STALE" || normalized === "PARTIAL") return "warning";
+  if (normalized === "FAIL" || normalized === "UNAVAILABLE") return "error";
+  if (normalized === "RUNNING") return "info";
+  return "neutral";
+}
+
+function setHealthBadge(element, status, label = status) {
+  const tone = healthTone(status);
+  element.className = `health-badge ${tone}`;
+  element.textContent = label || "Unknown";
+}
+
+function formatHealthTimestamp(value) {
+  if (!value) return "Unavailable";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return parsed.toLocaleString([], {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+}
+
+function renderHealthIssues(issues, { unavailable = false } = {}) {
+  elements.healthIssueList.replaceChildren();
+  if (!issues.length) {
+    const empty = document.createElement("div");
+    empty.className = unavailable ? "state-empty" : "health-empty-success";
+    empty.textContent = unavailable
+      ? "Monitoring evidence is unavailable; issue count is unknown."
+      : "No non-PASS results were returned by the configured monitoring checks.";
+    elements.healthIssueList.append(empty);
+    return;
+  }
+
+  issues.forEach((issue) => {
+    const article = document.createElement("article");
+    article.className = "health-issue";
+    const top = document.createElement("div");
+    top.className = "health-issue-top";
+    const identity = document.createElement("strong");
+    identity.textContent = issue.metric_name || issue.entity_name || issue.reconciliation_name || issue.category;
+    const badge = document.createElement("span");
+    setHealthBadge(badge, issue.status);
+    top.append(identity, badge);
+
+    const category = document.createElement("span");
+    category.className = "health-issue-category";
+    category.textContent = String(issue.category || "monitoring").replaceAll("_", " ");
+    const evidence = document.createElement("code");
+    evidence.textContent = issue.evidence_ref || "Evidence reference unavailable";
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.textContent = "View retrieved check details";
+    const pre = document.createElement("pre");
+    pre.textContent = JSON.stringify(issue.details || {}, null, 2);
+    details.append(summary, pre);
+    article.append(top, category, evidence, details);
+    elements.healthIssueList.append(article);
+  });
+}
+
+function renderSourceErrors(errors) {
+  elements.healthSourceErrors.replaceChildren();
+  elements.healthSourceErrors.hidden = !errors.length;
+  errors.forEach((error) => {
+    const item = document.createElement("p");
+    item.textContent = `${error.source || "source"}: ${error.message || "Evidence unavailable."}`;
+    elements.healthSourceErrors.append(item);
+  });
+}
+
+function renderHealthSummary(summary) {
+  const pipeline = summary.pipeline || {};
+  const monitoring = summary.monitoring || {};
+  const counts = monitoring.checks || {};
+  const taskCounts = pipeline.task_counts || {};
+  const stale = monitoring.staleness || {};
+  const availability = summary.availability || {};
+
+  setHealthBadge(elements.pipelineHealthStatus, pipeline.status);
+  setHealthBadge(elements.monitoringHealthStatus, monitoring.status);
+  setHealthBadge(elements.healthStaleStatus, stale.status, stale.status === "STALE" ? "Stale evidence" : stale.status);
+  elements.pipelineRunValue.textContent = pipeline.run_id ? `#${pipeline.run_id}` : pipeline.found === false ? "No run found" : "Unavailable";
+  elements.pipelineCompletedValue.textContent = formatHealthTimestamp(pipeline.end_time);
+  elements.pipelineTaskValue.textContent = taskCounts.total == null
+    ? "Unavailable"
+    : `${taskCounts.passed || 0} passed / ${taskCounts.total} total`;
+  elements.pipelineFailedValue.textContent = taskCounts.failed == null ? "Unavailable" : String(taskCounts.failed);
+  elements.healthPassCount.textContent = counts.pass ?? "—";
+  elements.healthWarnCount.textContent = counts.warn ?? "—";
+  elements.healthFailCount.textContent = counts.fail ?? "—";
+  elements.healthTotalCount.textContent = counts.total ?? "—";
+  elements.monitoringRunValue.textContent = formatHealthTimestamp(monitoring.monitoring_run_at);
+  elements.monitoringReferenceValue.textContent = formatHealthTimestamp(monitoring.monitoring_reference_at);
+  elements.syntheticReferenceValue.textContent = monitoring.synthetic_reference_date || "Unavailable";
+  elements.pipelineAssociationValue.textContent = monitoring.pipeline_association || "UNVERIFIED";
+  elements.healthGeneratedValue.textContent = `Generated ${formatHealthTimestamp(summary.generated_at)}`;
+
+  const overall = String(summary.overall_status || "UNKNOWN").toUpperCase();
+  elements.healthState.className = `health-state ${healthTone(overall)}`;
+  if (overall === "UNAVAILABLE") {
+    elements.healthState.textContent = "Health evidence is unavailable. No healthy conclusion can be drawn.";
+  } else if (overall === "PARTIAL" || availability.partial) {
+    const finding = overall === "FAIL"
+      ? " Available evidence includes a failure."
+      : overall === "WARN"
+        ? " Available evidence includes a warning."
+        : "";
+    elements.healthState.textContent = `Partial review: one evidence source is unavailable.${finding} Available results are shown without filling the gap.`;
+  } else if (stale.status === "STALE") {
+    elements.healthState.textContent = "Monitoring evidence is stale. The displayed checks may not represent current conditions.";
+  } else {
+    elements.healthState.textContent = `Review status: ${overall}. This status is limited to the retrieved execution and monitoring evidence.`;
+  }
+
+  renderSourceErrors(summary.source_errors || []);
+  renderHealthIssues(monitoring.issues || [], { unavailable: !monitoring.available });
+  addEvent("health.summary", summary);
+}
+
+async function loadDailyHealth() {
+  if (state.healthLoading) return;
+  state.healthLoading = true;
+  elements.healthRefresh.disabled = true;
+  elements.healthState.className = "health-state loading";
+  elements.healthState.textContent = "Retrieving Jobs and observability evidence…";
+  try {
+    const response = await fetch("/api/ui/health-summary", {
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: routingHeaders(),
+    });
+    if (!response.ok) throw new Error(await response.text() || `Health summary failed (${response.status}).`);
+    const summary = await response.json();
+    renderHealthSummary(summary);
+    state.healthLoaded = true;
+  } catch (error) {
+    elements.healthState.className = "health-state error";
+    elements.healthState.textContent = `Daily Health Review unavailable: ${error.message}`;
+    renderSourceErrors([{ source: "dashboard", message: error.message }]);
+    renderHealthIssues([], { unavailable: true });
+    addEvent("health.error", { message: error.message });
+  } finally {
+    state.healthLoading = false;
+    elements.healthRefresh.disabled = false;
+  }
+}
+
+function setWorkspaceView(view) {
+  const showHealth = view === "health";
+  elements.healthView.hidden = !showHealth;
+  elements.chatView.hidden = showHealth;
+  elements.healthViewTab.classList.toggle("active", showHealth);
+  elements.chatViewTab.classList.toggle("active", !showHealth);
+  elements.healthViewTab.setAttribute("aria-selected", String(showHealth));
+  elements.chatViewTab.setAttribute("aria-selected", String(!showHealth));
+  if (showHealth && !state.healthLoaded) void loadDailyHealth();
+}
+
 async function loadConfig() {
   try {
     const response = await fetch(demoUrl("/api/ui/config"), { cache: "no-store" });
@@ -1559,6 +1751,9 @@ elements.copySession.addEventListener("click", async () => {
 });
 
 elements.refreshConfig.addEventListener("click", () => loadConfig().catch(appendError));
+elements.chatViewTab.addEventListener("click", () => setWorkspaceView("chat"));
+elements.healthViewTab.addEventListener("click", () => setWorkspaceView("health"));
+elements.healthRefresh.addEventListener("click", () => void loadDailyHealth());
 elements.newSession.addEventListener("click", createNewSession);
 elements.railNewSession.addEventListener("click", createNewSession);
 elements.refreshSession.addEventListener("click", () => refreshSessionView({ hydrateChat: true }));
