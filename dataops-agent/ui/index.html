@@ -218,9 +218,9 @@
                   class="secondary-button"
                   type="button"
                   data-investigation-action="generate_dataops_investigation_report"
-                  title="Full investigation will be connected in V2.6B"
+                  title="Run the bounded read-only investigation workflow"
                   disabled
-                >Run Full Investigation <span>V2.6B</span></button>
+                >Run Full Investigation <span>AI</span></button>
                 <button id="health-refresh" class="primary-button" type="button">
                   <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
                   Refresh
@@ -294,6 +294,32 @@
               <div id="health-issue-list" class="health-issue-list">
                 <div class="state-empty">Refresh to load configured monitoring checks.</div>
               </div>
+            </section>
+
+            <section id="investigation-result" class="investigation-result" aria-labelledby="investigation-heading" hidden>
+              <div class="health-section-head">
+                <div>
+                  <p class="eyebrow">Bounded AI investigation</p>
+                  <h3 id="investigation-heading">Investigation summary</h3>
+                </div>
+                <span id="investigation-status" class="health-badge neutral">Idle</span>
+              </div>
+              <p id="investigation-message" class="investigation-message"></p>
+              <dl class="investigation-facts">
+                <div><dt>Completeness</dt><dd id="investigation-completeness">—</dd></div>
+                <div><dt>Pipeline</dt><dd id="investigation-pipeline">—</dd></div>
+                <div><dt>Monitoring</dt><dd id="investigation-monitoring">—</dd></div>
+                <div><dt>Detected issues</dt><dd id="investigation-issues">—</dd></div>
+              </dl>
+              <div class="investigation-assessments">
+                <p><strong>Root cause</strong><span id="investigation-root-cause">Unknown</span></p>
+                <p><strong>Impact</strong><span id="investigation-impact">Unknown</span></p>
+              </div>
+              <div>
+                <p class="eyebrow">Top recommendations</p>
+                <div id="investigation-recommendations" class="investigation-recommendations"></div>
+              </div>
+              <p class="health-boundary-note">This investigation recollects evidence when it runs. Its relationship to the displayed health snapshot remains unverified unless report evidence establishes linkage.</p>
             </section>
 
             <p class="health-boundary-note">A successful Lakeflow run does not imply all monitoring checks passed. Monitoring timestamps and synthetic reference dates are intentionally shown separately.</p>
@@ -435,6 +461,7 @@
 
     <script src="/ui-assets/markdown-it-15.0.2.min.js" defer></script>
     <script src="/ui-assets/conversations.js?v=1" defer></script>
-    <script src="/ui-assets/app.js?v=9" defer></script>
+    <script src="/ui-assets/investigation.js?v=1" defer></script>
+    <script src="/ui-assets/app.js?v=10" defer></script>
   </body>
 </html>

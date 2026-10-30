@@ -85,6 +85,17 @@ const elements = {
   healthGeneratedValue: document.querySelector("#health-generated-value"),
   healthSourceErrors: document.querySelector("#health-source-errors"),
   healthIssueList: document.querySelector("#health-issue-list"),
+  runFullInvestigation: document.querySelector("#run-full-investigation"),
+  investigationResult: document.querySelector("#investigation-result"),
+  investigationStatus: document.querySelector("#investigation-status"),
+  investigationMessage: document.querySelector("#investigation-message"),
+  investigationCompleteness: document.querySelector("#investigation-completeness"),
+  investigationPipeline: document.querySelector("#investigation-pipeline"),
+  investigationMonitoring: document.querySelector("#investigation-monitoring"),
+  investigationIssues: document.querySelector("#investigation-issues"),
+  investigationRootCause: document.querySelector("#investigation-root-cause"),
+  investigationImpact: document.querySelector("#investigation-impact"),
+  investigationRecommendations: document.querySelector("#investigation-recommendations"),
   runtimeTransport: document.querySelector("#runtime-transport"),
   runtimeSession: document.querySelector("#runtime-session"),
   runtimeModel: document.querySelector("#runtime-model"),
@@ -102,8 +113,10 @@ const AGENT_FRAMEWORK = "LangGraph";
 const SESSION_STORAGE_KEY = "databricks-agentbricks-session-id";
 const CONVERSATION_INDEX_STORAGE_KEY = "dataops-conversation-index-v1";
 const conversationIndex = window.DataOpsConversationIndex;
+const investigation = window.DataOpsInvestigation;
 
 if (!conversationIndex) throw new Error("Conversation index helpers failed to load.");
+if (!investigation) throw new Error("Investigation helpers failed to load.");
 
 function newSessionId() {
   return crypto.randomUUID();
@@ -139,6 +152,11 @@ const state = {
   sessionId: initialSessionId,
   healthLoaded: false,
   healthLoading: false,
+  healthSnapshot: null,
+  healthSnapshotKey: "",
+  investigationRunning: false,
+  investigationInvocationId: "",
+  completedInvestigationSnapshotKey: "",
 };
 
 function ensureSessionId() {
@@ -1527,6 +1545,180 @@ function renderSourceErrors(errors) {
   });
 }
 
+function setInvestigationButton(label, disabled) {
+  elements.runFullInvestigation.textContent = label;
+  elements.runFullInvestigation.disabled = disabled;
+}
+
+function resetInvestigationForSnapshot(snapshot, key) {
+  state.healthSnapshot = snapshot;
+  state.healthSnapshotKey = key;
+  state.investigationInvocationId = "";
+  state.completedInvestigationSnapshotKey = "";
+  elements.investigationResult.hidden = true;
+  elements.investigationRecommendations.replaceChildren();
+  setInvestigationButton("Run Full Investigation", false);
+}
+
+function renderRecommendation(recommendation) {
+  const article = document.createElement("article");
+  article.className = "investigation-recommendation";
+  const head = document.createElement("div");
+  head.className = "health-issue-top";
+  const title = document.createElement("strong");
+  title.textContent = recommendation.action;
+  const priority = document.createElement("span");
+  priority.className = "health-badge info";
+  priority.textContent = recommendation.priority;
+  head.append(title, priority);
+  const category = document.createElement("span");
+  category.className = "health-issue-category";
+  category.textContent = recommendation.category.replaceAll("_", " ");
+  const rationale = document.createElement("p");
+  rationale.textContent = recommendation.rationale;
+  const approval = document.createElement("p");
+  approval.className = recommendation.requires_human_approval ? "approval-required" : "approval-not-required";
+  approval.textContent = recommendation.requires_human_approval
+    ? "Human approval required before any proposed correction."
+    : "Diagnostic or verification guidance; no corrective action is executed.";
+  const details = document.createElement("details");
+  const summary = document.createElement("summary");
+  summary.textContent = "Evidence and verification";
+  const refs = document.createElement("p");
+  refs.textContent = `Evidence: ${recommendation.evidence_refs.join(", ")}`;
+  const steps = document.createElement("ol");
+  recommendation.verification_steps.forEach((step) => {
+    const item = document.createElement("li");
+    item.textContent = step;
+    steps.append(item);
+  });
+  details.append(summary, refs, steps);
+  article.append(head, category, rationale, approval, details);
+  return article;
+}
+
+function renderInvestigationReport(report) {
+  const summary = investigation.minimalSummary(report);
+  const resultState = investigation.reportState(report);
+  elements.investigationResult.hidden = false;
+  setHealthBadge(
+    elements.investigationStatus,
+    resultState === "success" ? "PASS" : resultState === "partial" ? "PARTIAL" : "UNAVAILABLE",
+    resultState === "success" ? "Complete" : resultState === "partial" ? "Partial" : "Unavailable",
+  );
+  elements.investigationMessage.textContent = resultState === "success"
+    ? "The bounded investigation completed. No corrective action was executed."
+    : resultState === "partial"
+      ? `The investigation completed with incomplete evidence (${summary.source_error_count} source error(s)).`
+      : "The workflow returned an unavailable report; no healthy conclusion can be drawn.";
+  elements.investigationCompleteness.textContent = summary.completeness;
+  elements.investigationPipeline.textContent = summary.pipeline_status;
+  elements.investigationMonitoring.textContent = summary.monitoring_status;
+  elements.investigationIssues.textContent = String(summary.issue_count);
+  elements.investigationRootCause.textContent = `${summary.root_cause.status}: ${summary.root_cause.explanation}`;
+  elements.investigationImpact.textContent = `${summary.impact.status}: ${summary.impact.explanation}`;
+  elements.investigationRecommendations.replaceChildren();
+  if (!summary.recommendations.length) {
+    const empty = document.createElement("div");
+    empty.className = "state-empty";
+    empty.textContent = "No supported recommendations were returned.";
+    elements.investigationRecommendations.append(empty);
+  } else {
+    summary.recommendations.forEach((recommendation) => {
+      elements.investigationRecommendations.append(renderRecommendation(recommendation));
+    });
+  }
+}
+
+function investigationResultItem(result) {
+  const handlerResult = agentResult(result);
+  const output = Array.isArray(handlerResult?.output) ? handlerResult.output : [];
+  const item = output.find((entry) => entry?.type === "investigation_report");
+  if (!item?.report) throw new Error("The investigation completed without a structured report.");
+  return item;
+}
+
+async function pollInvestigation(invocationId, sessionId) {
+  let delay = 850;
+  while (true) {
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    const response = await fetch(`/api/invocations/${encodeURIComponent(invocationId)}`, {
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: routingHeaders(sessionId),
+    });
+    if (response.status === 404) {
+      throw new Error("The investigation invocation is no longer available. Refresh health evidence before retrying.");
+    }
+    const result = await jsonResponse(response);
+    addEvent("investigation.poll", { id: invocationId, status: result.status });
+    if (result.status === "completed") return investigationResultItem(result);
+    if (result.status === "failed") {
+      throw new Error(result.error?.message || result.error || "The investigation workflow failed.");
+    }
+    elements.investigationMessage.textContent = `Investigation ${result.status || "running"}…`;
+    delay = Math.min(delay * 1.5, 5000);
+  }
+}
+
+async function runFullInvestigation() {
+  if (!investigation.canStart({
+    running: state.investigationRunning,
+    completedSnapshotKey: state.completedInvestigationSnapshotKey,
+    currentSnapshotKey: state.healthSnapshotKey,
+  })) {
+    addEvent("investigation.duplicate.blocked", { snapshot_key_present: Boolean(state.healthSnapshotKey) });
+    return;
+  }
+
+  const sessionId = ensureSessionId();
+  state.investigationRunning = true;
+  state.investigationInvocationId ||= newSessionId();
+  elements.investigationResult.hidden = false;
+  elements.investigationMessage.textContent = "Starting the bounded read-only investigation…";
+  setHealthBadge(elements.investigationStatus, "RUNNING", "Running");
+  setInvestigationButton("Investigation running…", true);
+  elements.healthRefresh.disabled = true;
+
+  const request = {
+    id: state.investigationInvocationId,
+    session_id: sessionId,
+    background: true,
+    input: {
+      actor: state.config?.session.actor || sessionId,
+      action: elements.runFullInvestigation.dataset.investigationAction,
+      health_snapshot: state.healthSnapshot,
+    },
+  };
+
+  try {
+    const response = await fetch("/api/invocations", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: invocationHeaders(sessionId),
+      body: JSON.stringify(request),
+    });
+    const started = await jsonResponse(response);
+    addEvent("investigation.started", { id: started.id || request.id, snapshot: state.healthSnapshot });
+    const item = await pollInvestigation(started.id || request.id, sessionId);
+    const report = investigation.validateReport(item.report);
+    renderInvestigationReport(report);
+    state.completedInvestigationSnapshotKey = state.healthSnapshotKey;
+    setInvestigationButton("Investigation complete", true);
+    addEvent("investigation.completed", item);
+  } catch (error) {
+    elements.investigationResult.hidden = false;
+    setHealthBadge(elements.investigationStatus, "FAIL", "Failed");
+    elements.investigationMessage.textContent = `Investigation failed: ${error.message}`;
+    state.investigationInvocationId = "";
+    setInvestigationButton("Retry Full Investigation", false);
+    addEvent("investigation.error", { message: error.message });
+  } finally {
+    state.investigationRunning = false;
+    elements.healthRefresh.disabled = false;
+  }
+}
+
 function renderHealthSummary(summary) {
   const pipeline = summary.pipeline || {};
   const monitoring = summary.monitoring || {};
@@ -1573,6 +1765,9 @@ function renderHealthSummary(summary) {
 
   renderSourceErrors(summary.source_errors || []);
   renderHealthIssues(monitoring.issues || [], { unavailable: !monitoring.available });
+  const snapshot = investigation.snapshotContext(summary);
+  const snapshotKey = investigation.snapshotKey(snapshot);
+  if (snapshotKey !== state.healthSnapshotKey) resetInvestigationForSnapshot(snapshot, snapshotKey);
   addEvent("health.summary", summary);
 }
 
@@ -1754,6 +1949,7 @@ elements.refreshConfig.addEventListener("click", () => loadConfig().catch(append
 elements.chatViewTab.addEventListener("click", () => setWorkspaceView("chat"));
 elements.healthViewTab.addEventListener("click", () => setWorkspaceView("health"));
 elements.healthRefresh.addEventListener("click", () => void loadDailyHealth());
+elements.runFullInvestigation.addEventListener("click", () => void runFullInvestigation());
 elements.newSession.addEventListener("click", createNewSession);
 elements.railNewSession.addEventListener("click", createNewSession);
 elements.refreshSession.addEventListener("click", () => refreshSessionView({ hydrateChat: true }));

@@ -175,19 +175,25 @@ def test_demo_ui_routes(monkeypatch):
     assert 'id="runtime-model"' in index.text
     assert 'styles.css?v=8' in index.text
     assert 'conversations.js?v=1' in index.text
-    assert 'app.js?v=9' in index.text
+    assert 'investigation.js?v=1' in index.text
+    assert 'app.js?v=10' in index.text
     assert 'id="health-review-view"' in index.text
     assert 'id="health-view-tab"' in index.text
     assert 'id="health-refresh"' in index.text
     assert 'id="run-full-investigation"' in index.text
     assert 'data-investigation-action="generate_dataops_investigation_report"' in index.text
-    assert 'id="run-full-investigation"' in index.text and "disabled" in index.text
+    assert 'id="investigation-result"' in index.text
     conversation_script = client.get("/ui-assets/conversations.js")
     assert conversation_script.status_code == 200
     assert conversation_script.headers["cache-control"] == "no-store"
     assert "function mergeBackendSessions(" in conversation_script.text
     assert "function serializeConversationIndex(" in conversation_script.text
     assert "function canSwitchConversation(" in conversation_script.text
+    investigation_script = client.get("/ui-assets/investigation.js")
+    assert investigation_script.status_code == 200
+    assert investigation_script.headers["cache-control"] == "no-store"
+    assert "function validateReport(report)" in investigation_script.text
+    assert "function canStart(" in investigation_script.text
     app_script = client.get("/ui-assets/app.js")
     assert app_script.status_code == 200
     assert app_script.headers["cache-control"] == "no-store"
@@ -200,6 +206,12 @@ def test_demo_ui_routes(monkeypatch):
     assert 'credentials: "same-origin"' in app_script.text
     assert "function renderHealthSummary(summary)" in app_script.text
     assert "function setWorkspaceView(view)" in app_script.text
+    assert "function runFullInvestigation()" in app_script.text
+    assert 'action: elements.runFullInvestigation.dataset.investigationAction' in app_script.text
+    assert 'background: true' in app_script.text
+    assert "investigation.canStart" in app_script.text
+    assert "pollInvestigation(invocationId, sessionId)" in app_script.text
+    assert "headers: routingHeaders(sessionId)" in app_script.text
     assert 'fetch("/api/session/new"' not in app_script.text
     assert "/api/demo/sessions/${encodeURIComponent(sessionId)}/open" in app_script.text
     assert (

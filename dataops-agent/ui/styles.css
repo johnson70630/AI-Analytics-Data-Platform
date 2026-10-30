@@ -3167,7 +3167,8 @@ body.evidence-open .event-card {
 }
 
 .health-card,
-.health-issues {
+.health-issues,
+.investigation-result {
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -3274,6 +3275,107 @@ body.evidence-open .event-card {
   padding: 16px;
 }
 
+.investigation-result {
+  margin-top: 12px;
+  padding: 16px;
+  border-color: color-mix(in srgb, var(--purple) 28%, var(--line));
+}
+
+.investigation-message {
+  margin: 12px 0;
+  color: var(--ink-soft);
+}
+
+.investigation-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.investigation-facts div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.investigation-facts dt {
+  color: var(--ink-faint);
+  font-size: 10px;
+}
+
+.investigation-facts dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+
+.investigation-assessments {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.investigation-assessments p {
+  margin: 0;
+  padding: 10px;
+  border-left: 2px solid var(--purple);
+  background: color-mix(in srgb, var(--purple) 7%, var(--surface-muted));
+}
+
+.investigation-assessments strong,
+.investigation-assessments span {
+  display: block;
+}
+
+.investigation-assessments span {
+  margin-top: 4px;
+  color: var(--ink-soft);
+}
+
+.investigation-recommendations {
+  display: grid;
+  gap: 8px;
+}
+
+.investigation-recommendation {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-muted);
+}
+
+.investigation-recommendation > p {
+  margin: 7px 0;
+  color: var(--ink-soft);
+}
+
+.investigation-recommendation details {
+  margin-top: 8px;
+}
+
+.investigation-recommendation summary {
+  color: var(--purple);
+  cursor: pointer;
+}
+
+.investigation-recommendation ol {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.investigation-recommendation .approval-required {
+  color: var(--warning);
+}
+
+.investigation-recommendation .approval-not-required {
+  color: var(--success);
+}
+
 .health-section-head > span {
   color: var(--ink-faint);
   font-size: 11px;
@@ -3370,6 +3472,10 @@ body.evidence-open .event-card {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .investigation-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .health-time-card {
     grid-column: auto;
   }
@@ -3394,6 +3500,11 @@ body.evidence-open .event-card {
   }
 
   .health-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .investigation-assessments,
+  .investigation-facts {
     grid-template-columns: minmax(0, 1fr);
   }
 
