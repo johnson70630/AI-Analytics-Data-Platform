@@ -1,136 +1,471 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1350" viewBox="0 0 2400 1350" role="img" aria-labelledby="title desc">
-  <title id="title">AI Analytics Data Platform end-to-end workflow</title>
-  <desc id="desc">Scheduled Databricks Lakeflow ingestion and dbt transformations feed read-only operational evidence. A user manually refreshes Daily Health Review or starts a bounded LangGraph investigation through the DataOps AI Command Center.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1690" viewBox="0 0 2400 1690" role="img" aria-labelledby="title desc">
+  <title id="title">AI Analytics Data Platform — Databricks V2 architecture</title>
+  <desc id="desc">A detailed white-background architecture showing the scheduled Databricks Lakeflow medallion pipeline, governed Unity Catalog schemas, and the separate user-triggered DataOps Agent workflow with four read-only tools, LangGraph, bounded Genie investigations, managed stores, and evidence-linked recommendations.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#06101d"/>
-      <stop offset="1" stop-color="#0a1527"/>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f8fbff"/>
     </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#020617" flood-opacity="0.38"/>
+    <linearGradient id="lakeflow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#eff6ff"/>
+      <stop offset="1" stop-color="#f8fbff"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#15366b" flood-opacity="0.12"/>
     </filter>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L0,6 L9,3 z" fill="#7890a8"/>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#173b73"/>
     </marker>
+    <marker id="arrow-purple" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#6d28d9"/>
+    </marker>
+    <marker id="arrow-dash" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#2563eb"/>
+    </marker>
+    <symbol id="icon-databricks" viewBox="0 0 64 64">
+      <path d="M8 18 32 6l24 12-24 12L8 18Z" fill="none" stroke="#ef2929" stroke-width="4"/>
+      <path d="m8 29 24 12 24-12M8 40l24 12 24-12" fill="none" stroke="#ef2929" stroke-width="4" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="icon-db" viewBox="0 0 64 64">
+      <ellipse cx="32" cy="13" rx="23" ry="9" fill="#dbeafe" stroke="#315e95" stroke-width="3"/>
+      <path d="M9 13v34c0 5 10 9 23 9s23-4 23-9V13M9 30c0 5 10 9 23 9s23-4 23-9" fill="#eaf3ff" stroke="#315e95" stroke-width="3"/>
+    </symbol>
+    <symbol id="icon-delta" viewBox="0 0 64 64">
+      <path d="m32 7 25 48H7L32 7Z" fill="none" stroke="#06a6c9" stroke-width="6" stroke-linejoin="round"/>
+      <path d="m32 24 11 22H21l11-22Z" fill="#dff7fb"/>
+    </symbol>
+    <symbol id="icon-python" viewBox="0 0 64 64">
+      <path d="M12 29V16c0-8 7-12 20-12 12 0 18 4 18 12v12H29v7H12c-7 0-10-2-10-7 0-6 4-9 10-9" fill="#3776ab"/>
+      <circle cx="38" cy="13" r="2.5" fill="#fff"/>
+      <path d="M52 35v13c0 8-7 12-20 12-12 0-18-4-18-12V36h21v-7h17c7 0 10 2 10 7 0 6-4 9-10 9" fill="#ffd343"/>
+      <circle cx="26" cy="51" r="2.5" fill="#fff"/>
+    </symbol>
+    <symbol id="icon-chart" viewBox="0 0 64 64">
+      <path d="M8 55h49" stroke="#2563eb" stroke-width="3"/>
+      <rect x="12" y="34" width="9" height="17" rx="2" fill="#93c5fd"/>
+      <rect x="27" y="23" width="9" height="28" rx="2" fill="#60a5fa"/>
+      <rect x="42" y="10" width="9" height="41" rx="2" fill="#2563eb"/>
+    </symbol>
+    <symbol id="icon-shield" viewBox="0 0 64 64">
+      <path d="M32 5 54 14v16c0 14-9 24-22 29C19 54 10 44 10 30V14L32 5Z" fill="#dcfce7" stroke="#16a34a" stroke-width="3"/>
+      <path d="m22 31 7 7 14-16" fill="none" stroke="#16a34a" stroke-width="4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="icon-graph" viewBox="0 0 64 64">
+      <path d="M16 16 32 32 49 15M32 32l18 18M32 32 15 50" fill="none" stroke="#7c3aed" stroke-width="4"/>
+      <circle cx="16" cy="16" r="7" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+      <circle cx="49" cy="15" r="7" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+      <circle cx="32" cy="32" r="7" fill="#f5f3ff" stroke="#7c3aed" stroke-width="3"/>
+      <circle cx="50" cy="50" r="7" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+      <circle cx="17" cy="50" r="7" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+    </symbol>
+    <symbol id="icon-app" viewBox="0 0 64 64">
+      <rect x="7" y="8" width="50" height="48" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+      <path d="M7 20h50" stroke="#7c3aed" stroke-width="3"/>
+      <circle cx="15" cy="14" r="2" fill="#7c3aed"/><circle cx="22" cy="14" r="2" fill="#7c3aed"/>
+      <path d="M17 31h30M17 40h22M17 49h26" stroke="#7c3aed" stroke-width="3" stroke-linecap="round"/>
+    </symbol>
     <style>
-      .panel{fill:#0b1726;stroke-width:2}.scheduled{stroke:#22d3ee}.evidence{stroke:#64748b}.ondemand{stroke:#a78bfa}
-      .box{rx:14;stroke-width:2;filter:url(#shadow)}.source{fill:#10283d;stroke:#22d3ee}.transform{fill:#172e47;stroke:#60a5fa}
-      .govern{fill:#143b34;stroke:#34d399}.agent{fill:#2a204b;stroke:#a78bfa}.store{fill:#19283e;stroke:#94a3b8}
-      .warning{fill:#4a3012;stroke:#fbbf24}.report{fill:#42233e;stroke:#f472b6}.health{fill:#183449;stroke:#38bdf8}
-      .edge{fill:none;stroke:#7890a8;stroke-width:2.2;marker-end:url(#arrow)}.dash{stroke-dasharray:8 7}
-      .title{font:700 38px Inter,system-ui,sans-serif;fill:#f0f9ff}.subtitle{font:400 19px Inter,system-ui,sans-serif;fill:#9fb3c8}
-      .panel-title{font:700 22px Inter,system-ui,sans-serif;letter-spacing:1.4px}.cyan{fill:#67e8f9}.violet{fill:#c4b5fd}.slate{fill:#cbd5e1}
-      .label{font:700 19px Inter,system-ui,sans-serif;fill:#f8fafc;text-anchor:middle}.detail{font:400 15px Inter,system-ui,sans-serif;fill:#cbd5e1;text-anchor:middle}
-      .small{font:500 13px Inter,system-ui,sans-serif;fill:#cbd5e1;text-anchor:middle}.edge-label{font:600 13px Inter,system-ui,sans-serif;fill:#a7f3d0}
-      .legend{font:600 14px Inter,system-ui,sans-serif;fill:#dbeafe}.pill{rx:11;stroke-width:1.5}
+      .title{font:800 38px Inter,Arial,sans-serif;fill:#0f2b57}.subtitle{font:500 20px Inter,Arial,sans-serif;fill:#456b9f}
+      .section{font:800 20px Inter,Arial,sans-serif;letter-spacing:1.1px;fill:#123563}.section-note{font:600 15px Inter,Arial,sans-serif;fill:#64748b}
+      .card{stroke-width:1.7;filter:url(#shadow)}.source{fill:#f4efff;stroke:#8b5cf6}.state{fill:#fff7ea;stroke:#f59e0b}
+      .delta{fill:#fff4e8;stroke:#f59e0b}.transform{fill:#edf7ff;stroke:#3b82f6}.pii{fill:#f6edff;stroke:#c084fc}
+      .analytics{fill:#effcf3;stroke:#4fb86b}.gold{fill:#fff9dc;stroke:#eab308}.observe{fill:#eef6ff;stroke:#2563eb}
+      .agent{fill:#f7f1ff;stroke:#8b5cf6}.agent-strong{fill:#eee7ff;stroke:#6d28d9}.report{fill:#fff0f7;stroke:#db4f91}
+      .infra{fill:#f8fbff;stroke:#7d9bc0}.govern{fill:#effaf5;stroke:#10a36b}.metric{fill:#f0fdf4;stroke:#16a34a}
+      .card-title{font:800 18px Inter,Arial,sans-serif;fill:#102a56;text-anchor:middle}.card-sub{font:600 14px Inter,Arial,sans-serif;fill:#315e95;text-anchor:middle}
+      .schema{font:700 14px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#174ea6;text-anchor:middle}.body{font:500 14px Inter,Arial,sans-serif;fill:#223b63}
+      .tiny{font:500 12.5px Inter,Arial,sans-serif;fill:#465f83}.mono{font:600 12.5px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#432f78}
+      .number{font:800 16px Inter,Arial,sans-serif;fill:#fff;text-anchor:middle;dominant-baseline:middle}.banner-title{font:800 24px Inter,Arial,sans-serif;fill:#102a56}
+      .banner-sub{font:500 16px Inter,Arial,sans-serif;fill:#315e95}.chip{font:700 14px Inter,Arial,sans-serif;fill:#174173}.check{font:800 16px Inter,Arial,sans-serif;fill:#fff;text-anchor:middle;dominant-baseline:middle}
+      .flow{fill:none;stroke:#173b73;stroke-width:2.3;marker-end:url(#arrow-blue)}.manual{fill:none;stroke:#6d28d9;stroke-width:2.5;marker-end:url(#arrow-purple)}
+      .dash{fill:none;stroke:#2563eb;stroke-width:2;stroke-dasharray:8 7;marker-end:url(#arrow-dash)}.connector-label{font:700 13px Inter,Arial,sans-serif;fill:#5b3ca3;text-anchor:middle}
+      .panel-title{font:800 19px Inter,Arial,sans-serif;fill:#102a56}.panel-body{font:500 14px Inter,Arial,sans-serif;fill:#2d486f}
+      .schema-name{font:800 12.5px Inter,Arial,sans-serif;fill:#102a56;text-anchor:middle}.schema-role{font:500 11.5px Inter,Arial,sans-serif;fill:#466486;text-anchor:middle}
+      .metric-value{font:900 24px Inter,Arial,sans-serif;fill:#07833d;text-anchor:middle}.metric-label{font:700 12.5px Inter,Arial,sans-serif;fill:#315e95;text-anchor:middle}
+      .legend{font:600 13px Inter,Arial,sans-serif;fill:#29476f}.foot{font:600 12.5px Inter,Arial,sans-serif;fill:#64748b}
     </style>
   </defs>
 
-  <rect width="2400" height="1350" fill="url(#bg)"/>
-  <text x="60" y="62" class="title">AI Analytics Data Platform</text>
-  <text x="60" y="96" class="subtitle">Scheduled medallion pipeline → governed evidence → user-triggered DataOps investigation</text>
-  <rect x="1770" y="38" width="16" height="16" class="pill source"/><text x="1798" y="52" class="legend">Scheduled data path</text>
-  <rect x="1995" y="38" width="16" height="16" class="pill agent"/><text x="2023" y="52" class="legend">On-demand path</text>
-  <rect x="2190" y="38" width="16" height="16" class="pill warning"/><text x="2218" y="52" class="legend">Evidence boundary</text>
+  <rect width="2400" height="1600" fill="url(#page)"/>
+  <text id="diagram-title" x="48" y="58" class="title">AI Analytics Data Platform — Databricks V2</text>
+  <text x="48" y="91" class="subtitle">Scheduled lakehouse processing → governed operational evidence → user-triggered DataOps investigation</text>
+  <g transform="translate(1900 34)">
+    <path d="M0 15h34" class="flow"/><text x="46" y="20" class="legend">scheduled</text>
+    <path d="M155 15h34" class="manual"/><text x="201" y="20" class="legend">user-triggered</text>
+    <path d="M0 47h34" class="dash"/><text x="46" y="52" class="legend">read-only / governance</text>
+  </g>
+
+  <!-- Lakeflow banner -->
+  <rect x="40" y="115" width="2320" height="112" rx="16" fill="url(#lakeflow)" stroke="#2563eb" stroke-width="2" filter="url(#shadow)"/>
+  <use href="#icon-databricks" x="66" y="137" width="64" height="64"/>
+  <text x="150" y="158" class="banner-title">Databricks Lakeflow Jobs</text>
+  <text x="150" y="187" class="banner-sub">Daily end-to-end orchestration · scheduled 2:00 AM America/Los_Angeles</text>
+  <g transform="translate(700 142)"><circle cx="18" cy="18" r="17" fill="#16a34a"/><text x="18" y="19" class="check">✓</text><text x="47" y="14" class="chip">9-task DAG</text><text x="47" y="34" class="tiny">explicit dependencies</text></g>
+  <g transform="translate(1010 142)"><circle cx="18" cy="18" r="17" fill="#16a34a"/><text x="18" y="19" class="check">✓</text><text x="47" y="14" class="chip">Serverless compute</text><text x="47" y="34" class="tiny">Jobs + SQL Warehouse</text></g>
+  <g transform="translate(1370 142)"><circle cx="18" cy="18" r="17" fill="#16a34a"/><text x="18" y="19" class="check">✓</text><text x="47" y="14" class="chip">Retry-safe generator</text><text x="47" y="34" class="tiny">one logical day per run</text></g>
+  <g transform="translate(1745 142)"><circle cx="18" cy="18" r="17" fill="#16a34a"/><text x="18" y="19" class="check">✓</text><text x="47" y="14" class="chip">dbt build + tests</text><text x="47" y="34" class="tiny">staging → observability</text></g>
+  <g transform="translate(2080 142)"><circle cx="18" cy="18" r="17" fill="#16a34a"/><text x="18" y="19" class="check">✓</text><text x="47" y="14" class="chip">Monitored</text><text x="47" y="34" class="tiny">Jobs + DQ evidence</text></g>
 
   <!-- Scheduled data platform -->
-  <rect x="40" y="130" width="1010" height="1130" rx="22" class="panel scheduled"/>
-  <text x="75" y="177" class="panel-title cyan">1 · DAILY DATA PLATFORM — SCHEDULED</text>
+  <rect x="40" y="252" width="2320" height="470" rx="18" fill="#fbfdff" stroke="#60a5fa" stroke-width="2"/>
+  <text x="65" y="286" class="section">SCHEDULED DATA PLATFORM</text>
+  <text x="590" y="286" class="section-note">Lakeflow advances the synthetic logical day and executes the dbt warehouse stages</text>
 
-  <rect x="80" y="220" width="270" height="100" class="box source"/>
-  <text x="215" y="260" class="label">Synthetic events</text><text x="215" y="288" class="detail">product · model · finance</text>
-  <rect x="390" y="220" width="270" height="100" class="box source"/>
-  <text x="525" y="260" class="label">Lakeflow Jobs</text><text x="525" y="288" class="detail">daily orchestration</text>
-  <rect x="700" y="210" width="310" height="120" class="box source"/>
-  <text x="855" y="250" class="label">Python / Spark generator</text><text x="855" y="278" class="detail">deterministic source state</text><text x="855" y="301" class="small">clean state separated from dirty Bronze</text>
-  <path d="M350 270 H390" class="edge"/><path d="M660 270 H700" class="edge"/>
+  <!-- Stage 1 -->
+  <g transform="translate(60 310)">
+    <rect width="240" height="335" rx="13" class="card source"/>
+    <circle cx="25" cy="25" r="16" fill="#7c3aed"/><text x="25" y="26" class="number">1</text>
+    <text x="120" y="28" class="card-title">Synthetic generator</text>
+    <use href="#icon-python" x="88" y="48" width="64" height="64"/>
+    <text x="120" y="132" class="card-sub">Python / Spark</text>
+    <text x="18" y="169" class="body">• deterministic daily events</text>
+    <text x="18" y="196" class="body">• 10,000 synthetic users</text>
+    <text x="18" y="223" class="body">• product · model · finance</text>
+    <text x="18" y="250" class="body">• defects injected in Bronze</text>
+    <text x="18" y="292" class="tiny">Clean operational state stays</text>
+    <text x="18" y="311" class="tiny">separate from dirty ingestion.</text>
+  </g>
+  <path d="M300 478h15" class="flow"/>
 
-  <text x="525" y="375" class="small">dbt-databricks transformations + tests</text>
-  <rect x="80" y="410" width="205" height="100" class="box transform"/>
-  <text x="182" y="450" class="label">Delta Bronze</text><text x="182" y="478" class="detail">append-only records</text>
-  <rect x="320" y="410" width="205" height="100" class="box transform"/>
-  <text x="422" y="450" class="label">Staging</text><text x="422" y="478" class="detail">typed · deduplicated</text>
-  <rect x="560" y="410" width="205" height="100" class="box transform"/>
-  <text x="662" y="450" class="label">Silver</text><text x="662" y="478" class="detail">SCD2 · dimensions · facts</text>
-  <rect x="800" y="410" width="205" height="100" class="box transform"/>
-  <text x="902" y="450" class="label">Gold</text><text x="902" y="478" class="detail">business marts</text>
-  <path d="M855 330 V365 H182 V410" class="edge"/><path d="M285 460 H320" class="edge"/><path d="M525 460 H560" class="edge"/><path d="M765 460 H800" class="edge"/>
+  <!-- Stage 2 -->
+  <g transform="translate(315 310)">
+    <rect width="240" height="335" rx="13" class="card state"/>
+    <circle cx="25" cy="25" r="16" fill="#d97706"/><text x="25" y="26" class="number">2</text>
+    <text x="120" y="28" class="card-title">Source state</text>
+    <use href="#icon-db" x="88" y="48" width="64" height="64"/>
+    <text x="120" y="132" class="schema">ai_analytics.source</text>
+    <text x="18" y="169" class="body">• generator_* tables</text>
+    <text x="18" y="196" class="body">• clean current state</text>
+    <text x="18" y="223" class="body">• user + timestamp tracking</text>
+    <text x="18" y="250" class="body">• deterministic continuation</text>
+    <text x="18" y="292" class="tiny">Internal schema; no controlled</text>
+    <text x="18" y="311" class="tiny">quality defects stored here.</text>
+  </g>
+  <path d="M555 478h15" class="flow"/>
 
-  <rect x="165" y="590" width="300" height="110" class="box govern"/>
-  <text x="315" y="633" class="label">Databricks AI/BI</text><text x="315" y="662" class="detail">governed Gold dashboards</text>
-  <rect x="545" y="570" width="390" height="150" class="box govern"/>
-  <text x="740" y="613" class="label">Observability as data</text><text x="740" y="644" class="detail">freshness · volume · quality</text><text x="740" y="672" class="detail">cross-layer reconciliation</text>
-  <path d="M902 510 V545 H315 V590" class="edge"/><path d="M422 510 V540 H740 V570" class="edge"/><path d="M662 510 V545 H740 V570" class="edge"/><path d="M902 510 V550 H740 V570" class="edge"/>
+  <!-- Stage 3 -->
+  <g transform="translate(570 310)">
+    <rect width="240" height="335" rx="13" class="card delta"/>
+    <circle cx="25" cy="25" r="16" fill="#ea8b0c"/><text x="25" y="26" class="number">3</text>
+    <text x="120" y="28" class="card-title">Bronze</text>
+    <use href="#icon-delta" x="88" y="48" width="64" height="64"/>
+    <text x="120" y="132" class="schema">ai_analytics.bronze</text>
+    <text x="18" y="169" class="body">• managed Delta tables</text>
+    <text x="18" y="196" class="body">• append-only ingestion</text>
+    <text x="18" y="223" class="body">• missing fields + duplicates</text>
+    <text x="18" y="250" class="body">• timestamp violations kept</text>
+    <text x="18" y="292" class="tiny">Retry idempotency preserves</text>
+    <text x="18" y="311" class="tiny">intentional physical duplicates.</text>
+  </g>
+  <path d="M810 478h15" class="flow"/>
 
-  <rect x="80" y="805" width="870" height="150" class="box govern"/>
-  <text x="515" y="850" class="label">Unity Catalog governance</text>
-  <text x="515" y="883" class="detail">source · Bronze · staging · PII · snapshots · Silver · Gold · observability</text>
-  <text x="515" y="913" class="detail">schema boundaries · least-privilege access · sensitive user isolation</text>
-  <path d="M515 805 V750 H182 V510" class="edge dash"/>
-  <rect x="80" y="1015" width="870" height="125" class="box store"/>
-  <text x="515" y="1058" class="label">Scheduled responsibility</text>
-  <text x="515" y="1088" class="detail">Lakeflow advances the synthetic logical day and executes dbt stages/tests.</text>
-  <text x="515" y="1115" class="detail">No scheduled agent investigation, email notification, or automatic repair.</text>
+  <!-- Stage 4 -->
+  <g transform="translate(825 310)">
+    <rect width="240" height="335" rx="13" class="card transform"/>
+    <circle cx="25" cy="25" r="16" fill="#2563eb"/><text x="25" y="26" class="number">4</text>
+    <text x="120" y="28" class="card-title">dbt staging</text>
+    <text x="120" y="98" style="font:900 46px Inter,Arial,sans-serif;fill:#ff694b;text-anchor:middle">dbt</text>
+    <text x="120" y="132" class="schema">ai_analytics.staging</text>
+    <text x="18" y="169" class="body">• 14 source views</text>
+    <text x="18" y="196" class="body">• typed + deduplicated</text>
+    <text x="18" y="223" class="body">• quality flags retained</text>
+    <text x="18" y="250" class="body">• lineage from Bronze dt</text>
+    <text x="18" y="292" class="tiny">Explicit columns and deterministic</text>
+    <text x="18" y="311" class="tiny">replay handling.</text>
+  </g>
+  <path d="M1065 478h15" class="flow"/>
 
-  <!-- Evidence plane -->
-  <rect x="1080" y="130" width="500" height="1130" rx="22" class="panel evidence"/>
-  <text x="1115" y="177" class="panel-title slate">2 · READ-ONLY EVIDENCE</text>
-  <rect x="1120" y="240" width="420" height="115" class="box store"/>
-  <text x="1330" y="283" class="label">Jobs API</text><text x="1330" y="313" class="detail">latest execution and task metadata</text>
-  <rect x="1120" y="400" width="420" height="130" class="box store"/>
-  <text x="1330" y="443" class="label">Fixed observability SQL</text><text x="1330" y="473" class="detail">latest freshness · volume · quality</text><text x="1330" y="500" class="detail">and reconciliation checks</text>
-  <path d="M660 270 H1060 V298 H1120" class="edge"/><path d="M935 645 H1060 V465 H1120" class="edge"/>
+  <!-- Stage 5 -->
+  <g transform="translate(1080 310)">
+    <rect width="240" height="335" rx="13" class="card pii"/>
+    <circle cx="25" cy="25" r="16" fill="#a855f7"/><text x="25" y="26" class="number">5</text>
+    <text x="120" y="28" class="card-title">PII &amp; user state</text>
+    <use href="#icon-shield" x="88" y="48" width="64" height="64"/>
+    <text x="120" y="132" class="schema">ai_analytics.pii</text>
+    <text x="18" y="169" class="body">• current_user_state</text>
+    <text x="18" y="196" class="body">• user_state_history</text>
+    <text x="18" y="223" class="body">• dim_user_sensitive</text>
+    <text x="18" y="250" class="body">• Type 1 + Type 2 semantics</text>
+    <text x="18" y="292" class="tiny">Restricted schema isolates direct</text>
+    <text x="18" y="311" class="tiny">identifiers from analytics users.</text>
+  </g>
+  <path d="M1320 478h15" class="flow"/>
 
-  <rect x="1120" y="600" width="420" height="150" class="box health"/>
-  <text x="1330" y="645" class="label">Daily Health Review</text><text x="1330" y="677" class="detail">Manual Refresh</text><text x="1330" y="706" class="small">no automatic LLM or Genie execution</text>
-  <path d="M1330 355 V600" class="edge"/><path d="M1330 530 V600" class="edge"/>
-  <rect x="1120" y="820" width="420" height="175" class="box warning"/>
-  <text x="1330" y="866" class="label">Association remains UNVERIFIED</text>
-  <text x="1330" y="899" class="detail">Execution metadata and monitoring</text><text x="1330" y="927" class="detail">have no authoritative shared run key.</text>
-  <text x="1330" y="960" class="small">Successful execution ≠ every health check passed</text>
+  <!-- Stage 6 -->
+  <g transform="translate(1335 310)">
+    <rect width="240" height="335" rx="13" class="card pii"/>
+    <circle cx="25" cy="25" r="16" fill="#8b5cf6"/><text x="25" y="26" class="number">6</text>
+    <text x="120" y="28" class="card-title">SCD2 snapshot</text>
+    <use href="#icon-db" x="88" y="48" width="64" height="64"/>
+    <text x="120" y="132" class="schema">ai_analytics.snapshots</text>
+    <text x="18" y="169" class="body">• dim_user_snapshot</text>
+    <text x="18" y="196" class="body">• dbt check strategy</text>
+    <text x="18" y="223" class="body">• historical bootstrap</text>
+    <text x="18" y="250" class="body">• valid_from / valid_to</text>
+    <text x="18" y="292" class="tiny">Country and status drive SCD2;</text>
+    <text x="18" y="311" class="tiny">email/name remain Type 1.</text>
+  </g>
+  <path d="M1575 478h15" class="flow"/>
 
-  <!-- On-demand DataOps -->
-  <rect x="1610" y="130" width="750" height="1130" rx="22" class="panel ondemand"/>
-  <text x="1645" y="177" class="panel-title violet">3 · DATAOPS EXPERIENCE — USER TRIGGERED</text>
-  <rect x="1650" y="220" width="150" height="80" class="box agent"/>
-  <text x="1725" y="269" class="label">User</text>
-  <rect x="1840" y="210" width="260" height="100" class="box agent"/>
-  <text x="1970" y="251" class="label">DataOps AI</text><text x="1970" y="279" class="detail">Command Center</text>
-  <path d="M1800 260 H1840" class="edge"/>
+  <!-- Stage 7 -->
+  <g transform="translate(1590 310)">
+    <rect width="240" height="335" rx="13" class="card analytics"/>
+    <circle cx="25" cy="25" r="16" fill="#16a34a"/><text x="25" y="26" class="number">7</text>
+    <text x="120" y="28" class="card-title">Silver</text>
+    <use href="#icon-db" x="88" y="48" width="64" height="64"/>
+    <text x="120" y="132" class="schema">ai_analytics.silver</text>
+    <text x="18" y="169" class="body">• governed dimensions</text>
+    <text x="18" y="196" class="body">• 9 fact tables</text>
+    <text x="18" y="223" class="body">• temporal user keys</text>
+    <text x="18" y="250" class="body">• incremental Delta MERGE</text>
+    <text x="18" y="292" class="tiny">Two-day lookback safeguards</text>
+    <text x="18" y="311" class="tiny">late-arriving records.</text>
+  </g>
+  <path d="M1830 478h15" class="flow"/>
 
-  <rect x="1650" y="370" width="230" height="105" class="box agent"/>
-  <text x="1765" y="411" class="label">GPT OSS 120B</text><text x="1765" y="440" class="detail">declared model service</text>
-  <rect x="1930" y="350" width="380" height="150" class="box agent"/>
-  <text x="2120" y="385" class="label">Four read-only tools</text>
-  <text x="2120" y="414" class="small">get_latest_pipeline_run · get_latest_observability_summary</text>
-  <text x="2120" y="440" class="small">ask_genie_observability</text><text x="2120" y="465" class="small">generate_dataops_investigation_report</text>
-  <path d="M1970 310 V340 H1765 V370" class="edge"/><path d="M1880 422 H1930" class="edge"/>
+  <!-- Stage 8 -->
+  <g transform="translate(1845 310)">
+    <rect width="240" height="335" rx="13" class="card gold"/>
+    <circle cx="25" cy="25" r="16" fill="#ca8a04"/><text x="25" y="26" class="number">8</text>
+    <text x="120" y="28" class="card-title">Gold marts</text>
+    <use href="#icon-chart" x="88" y="48" width="64" height="64"/>
+    <text x="120" y="132" class="schema">ai_analytics.gold</text>
+    <text x="18" y="169" class="body">• product metrics</text>
+    <text x="18" y="196" class="body">• user activity</text>
+    <text x="18" y="223" class="body">• ML performance</text>
+    <text x="18" y="250" class="body">• finance metrics</text>
+    <text x="18" y="292" class="tiny">Four dashboard-ready marts feed</text>
+    <text x="18" y="311" class="tiny">governed Databricks AI/BI.</text>
+  </g>
+  <path d="M2085 478h15" class="flow"/>
 
-  <rect x="1650" y="565" width="300" height="105" class="box agent"/>
-  <text x="1800" y="607" class="label">Run Full Investigation</text><text x="1800" y="638" class="detail">one explicit user action</text>
-  <rect x="1990" y="555" width="320" height="125" class="box agent"/>
-  <text x="2150" y="599" class="label">LangGraph workflow</text><text x="2150" y="630" class="detail">parallel evidence collection</text><text x="2150" y="655" class="small">fixed composite action</text>
-  <path d="M1970 310 V535 H1800 V565" class="edge"/><path d="M1950 617 H1990" class="edge"/><path d="M1540 298 H1590 V617 H1990" class="edge"/><path d="M1540 465 H1580 V642 H1990" class="edge"/>
+  <!-- Stage 9 -->
+  <g transform="translate(2100 310)">
+    <rect width="240" height="335" rx="13" class="card observe"/>
+    <circle cx="25" cy="25" r="16" fill="#2563eb"/><text x="25" y="26" class="number">9</text>
+    <text x="120" y="28" class="card-title">Observability</text>
+    <use href="#icon-chart" x="88" y="48" width="64" height="64"/>
+    <text x="120" y="132" class="schema">ai_analytics.observability</text>
+    <text x="18" y="169" class="body">• entity freshness</text>
+    <text x="18" y="196" class="body">• daily row counts</text>
+    <text x="18" y="223" class="body">• quality metrics</text>
+    <text x="18" y="250" class="body">• layer reconciliation</text>
+    <text x="18" y="292" class="tiny">Monitoring reference date stays</text>
+    <text x="18" y="311" class="tiny">separate from execution time.</text>
+  </g>
 
-  <rect x="1650" y="755" width="230" height="105" class="box agent"/>
-  <text x="1765" y="797" class="label">Databricks Genie</text><text x="1765" y="828" class="detail">0–2 bounded queries</text>
-  <rect x="1920" y="740" width="390" height="135" class="box agent"/>
-  <text x="2115" y="783" class="label">P0–P3 recommendations</text><text x="2115" y="814" class="detail">deterministic · evidence linked</text><text x="2115" y="842" class="small">proposed corrections remain advisory</text>
-  <path d="M2150 680 V710 H1765 V755" class="edge"/><path d="M1880 807 H1920" class="edge"/><path d="M2150 680 V740" class="edge"/>
+  <rect x="65" y="666" width="2270" height="42" rx="9" fill="#fff8e8" stroke="#d97706" stroke-width="1.5"/>
+  <text x="82" y="692" style="font:800 14px Inter,Arial,sans-serif;fill:#8a4b08">READ-ONLY EVIDENCE BOUNDARY</text>
+  <text x="322" y="692" class="tiny">Jobs execution metadata + governed observability checks · successful execution ≠ every health check passed · pipeline ↔ monitoring association remains UNVERIFIED</text>
 
-  <rect x="1650" y="940" width="300" height="115" class="box report"/>
-  <text x="1800" y="982" class="label">InvestigationReport v1.1</text><text x="1800" y="1013" class="detail">unknowns + approval labels preserved</text>
-  <rect x="1990" y="940" width="320" height="115" class="box agent"/>
-  <text x="2150" y="982" class="label">Evidence-rich viewer</text><text x="2150" y="1013" class="detail">issues · Genie evidence · verification</text>
-  <path d="M2115 875 V910 H1800 V940" class="edge"/><path d="M1950 997 H1990" class="edge"/>
+  <!-- DataOps section: V1-style component cards -->
+  <rect x="40" y="748" width="2320" height="500" rx="18" fill="#fdfaff" stroke="#a78bfa" stroke-width="2"/>
+  <text x="65" y="783" class="section" style="fill:#5b21b6">USER-TRIGGERED DATAOPS</text>
+  <text x="440" y="783" class="section-note">Manual Refresh is lightweight; Run Full Investigation is one explicit user action</text>
+  <rect x="1905" y="760" width="420" height="32" rx="16" fill="#fff7e6" stroke="#d97706"/>
+  <text x="2115" y="781" style="font:700 13px Inter,Arial,sans-serif;fill:#8a4b08;text-anchor:middle">NO SCHEDULED AI · NO EMAIL · NO AUTOMATIC REPAIR</text>
 
-  <rect x="1650" y="1120" width="195" height="85" class="box store"/>
-  <text x="1747" y="1154" class="label">Session Store</text><text x="1747" y="1180" class="small">conversation state</text>
-  <rect x="1865" y="1120" width="195" height="85" class="box store"/>
-  <text x="1962" y="1154" class="label">Runtime Store</text><text x="1962" y="1180" class="small">invocation recovery</text>
-  <rect x="2080" y="1120" width="230" height="85" class="box store"/>
-  <text x="2195" y="1154" class="label">Agent Bricks + MLflow</text><text x="2195" y="1180" class="small">runtime · trace metadata</text>
-  <path d="M1747 1120 V1085 H1970 V310" class="edge dash"/><path d="M1962 1120 V1085 H1970 V310" class="edge dash"/>
+  <!-- Stage 10 -->
+  <g transform="translate(65 830)">
+    <rect width="365" height="330" rx="14" class="card agent"/>
+    <circle cx="28" cy="28" r="18" fill="#7c3aed"/><text x="28" y="29" class="number">10</text>
+    <use href="#icon-app" x="35" y="58" width="72" height="72"/>
+    <text x="225" y="45" class="card-title">Databricks Apps / Agent Bricks</text>
+    <text x="225" y="72" class="card-sub">DataOps AI Command Center</text>
+    <rect x="125" y="100" width="215" height="68" rx="9" fill="#fff" stroke="#8b5cf6"/>
+    <text x="143" y="126" class="body" style="font-weight:800">Daily Health Review</text>
+    <text x="143" y="151" class="tiny">Manual Refresh · no LLM / Genie</text>
+    <rect x="125" y="180" width="215" height="68" rx="9" fill="#fff" stroke="#8b5cf6"/>
+    <text x="143" y="206" class="body" style="font-weight:800">Chat workspace</text>
+    <text x="143" y="231" class="tiny">GPT OSS 120B → read-only tools</text>
+    <text x="35" y="282" class="body">Read-only application identity</text>
+    <text x="35" y="307" class="tiny">Sessions · evidence · report recovery</text>
+  </g>
+  <path d="M430 995h25" class="manual"/>
 
-  <text x="60" y="1310" class="subtitle">Conceptual workflow — application screenshots are captured separately. MLflow span-upload limitation is documented outside this diagram.</text>
+  <!-- Stage 11: four explicit, parallel tool cards -->
+  <g transform="translate(455 816)">
+    <rect width="875" height="358" rx="14" fill="#fbf9ff" stroke="#8b5cf6" stroke-width="1.8" stroke-dasharray="7 5"/>
+    <circle cx="28" cy="28" r="18" fill="#7c3aed"/><text x="28" y="29" class="number">11</text>
+    <text x="455" y="35" class="card-title">READ-ONLY TOOL BELT · four independent capabilities</text>
+
+    <g transform="translate(18 58)">
+      <rect width="200" height="260" rx="11" class="card agent"/>
+      <circle cx="25" cy="25" r="15" fill="#8b5cf6"/><text x="25" y="26" class="number" style="font-size:13px">A</text>
+      <text x="108" y="31" class="card-title" style="font-size:16px">Pipeline execution</text>
+      <text x="100" y="77" class="mono" style="text-anchor:middle">get_latest_</text>
+      <text x="100" y="97" class="mono" style="text-anchor:middle">pipeline_run</text>
+      <line x1="22" y1="118" x2="178" y2="118" stroke="#d8c9fb"/>
+      <text x="22" y="148" class="body">Jobs API</text>
+      <text x="22" y="177" class="body">• latest run status</text>
+      <text x="22" y="204" class="body">• task outcomes</text>
+      <text x="22" y="231" class="body">• execution timing</text>
+    </g>
+
+    <g transform="translate(231 58)">
+      <rect width="200" height="260" rx="11" class="card agent"/>
+      <circle cx="25" cy="25" r="15" fill="#8b5cf6"/><text x="25" y="26" class="number" style="font-size:13px">B</text>
+      <text x="108" y="31" class="card-title" style="font-size:16px">Latest data health</text>
+      <text x="100" y="71" class="mono" style="font-size:10.5px;text-anchor:middle">get_latest_</text>
+      <text x="100" y="88" class="mono" style="font-size:10.5px;text-anchor:middle">observability_</text>
+      <text x="100" y="105" class="mono" style="font-size:10.5px;text-anchor:middle">summary</text>
+      <line x1="22" y1="118" x2="178" y2="118" stroke="#d8c9fb"/>
+      <text x="22" y="148" class="body">Fixed SQL</text>
+      <text x="22" y="177" class="body">• freshness</text>
+      <text x="22" y="204" class="body">• volume + quality</text>
+      <text x="22" y="231" class="body">• reconciliation</text>
+    </g>
+
+    <g transform="translate(444 58)">
+      <rect width="200" height="260" rx="11" class="card agent"/>
+      <circle cx="25" cy="25" r="15" fill="#8b5cf6"/><text x="25" y="26" class="number" style="font-size:13px">C</text>
+      <text x="108" y="31" class="card-title" style="font-size:16px">Historical evidence</text>
+      <text x="100" y="77" class="mono" style="text-anchor:middle">ask_genie_</text>
+      <text x="100" y="97" class="mono" style="text-anchor:middle">observability</text>
+      <line x1="22" y1="118" x2="178" y2="118" stroke="#d8c9fb"/>
+      <text x="22" y="148" class="body">Databricks Genie</text>
+      <text x="22" y="177" class="body">• bounded questions</text>
+      <text x="22" y="204" class="body">• result rows</text>
+      <text x="22" y="231" class="body">• truncation metadata</text>
+    </g>
+
+    <g transform="translate(657 58)">
+      <rect width="200" height="260" rx="11" class="card agent-strong"/>
+      <circle cx="25" cy="25" r="15" fill="#6d28d9"/><text x="25" y="26" class="number" style="font-size:13px">D</text>
+      <text x="108" y="31" class="card-title" style="font-size:16px">Full investigation</text>
+      <text x="100" y="71" class="mono" style="font-size:10.5px;text-anchor:middle">generate_dataops_</text>
+      <text x="100" y="88" class="mono" style="font-size:10.5px;text-anchor:middle">investigation_</text>
+      <text x="100" y="105" class="mono" style="font-size:10.5px;text-anchor:middle">report</text>
+      <line x1="22" y1="118" x2="178" y2="118" stroke="#c4b5fd"/>
+      <text x="22" y="148" class="body">Fixed composite</text>
+      <text x="22" y="177" class="body">• LangGraph workflow</text>
+      <text x="22" y="204" class="body">• report v1.1</text>
+      <text x="22" y="231" class="body">• no corrective action</text>
+    </g>
+    <text x="437" y="344" class="tiny" style="font-weight:700;text-anchor:middle">No arbitrary SQL · job control · writes · repairs · backfills</text>
+  </g>
+  <path d="M1330 995h25" class="manual"/>
+
+  <!-- Stage 12 -->
+  <g transform="translate(1355 830)">
+    <rect width="420" height="330" rx="14" class="card agent-strong"/>
+    <circle cx="28" cy="28" r="18" fill="#6d28d9"/><text x="28" y="29" class="number">12</text>
+    <use href="#icon-graph" x="36" y="64" width="72" height="72"/>
+    <text x="250" y="44" class="card-title">LangGraph investigation</text>
+    <text x="132" y="86" class="body" style="font-weight:800">Parallel evidence collection</text>
+    <rect x="132" y="105" width="120" height="52" rx="8" fill="#fff" stroke="#8b5cf6"/>
+    <text x="192" y="129" class="tiny" style="font-weight:800;text-anchor:middle">Jobs</text><text x="192" y="147" class="tiny" style="text-anchor:middle">execution health</text>
+    <rect x="266" y="105" width="126" height="52" rx="8" fill="#fff" stroke="#8b5cf6"/>
+    <text x="329" y="129" class="tiny" style="font-weight:800;text-anchor:middle">Observability</text><text x="329" y="147" class="tiny" style="text-anchor:middle">data health</text>
+    <text x="132" y="193" class="body" style="font-weight:800">Conditional history</text>
+    <rect x="132" y="210" width="260" height="60" rx="9" fill="#fff" stroke="#8b5cf6"/>
+    <text x="150" y="235" class="tiny" style="font-weight:800">Genie · 0–2 bounded questions</text>
+    <text x="150" y="258" class="tiny">quality / volume history when supported</text>
+    <text x="132" y="300" class="tiny">Deterministic issue + recommendation rules</text>
+  </g>
+  <path d="M1775 995h25" class="manual"/>
+
+  <!-- Stage 13 -->
+  <g transform="translate(1800 830)">
+    <rect width="535" height="330" rx="14" class="card report"/>
+    <circle cx="28" cy="28" r="18" fill="#c02672"/><text x="28" y="29" class="number">13</text>
+    <text x="290" y="44" class="card-title">Evidence-linked report v1.1</text>
+    <rect x="35" y="78" width="218" height="70" rx="9" fill="#fff" stroke="#f09bc4"/>
+    <text x="144" y="104" class="body" style="font-weight:800;text-anchor:middle">Issues + Genie evidence</text><text x="144" y="128" class="tiny" style="text-anchor:middle">availability · rows · truncation</text>
+    <rect x="275" y="78" width="225" height="70" rx="9" fill="#fff" stroke="#f09bc4"/>
+    <text x="387" y="104" class="body" style="font-weight:800;text-anchor:middle">P0–P3 recommendations</text><text x="387" y="128" class="tiny" style="text-anchor:middle">evidence refs · verification</text>
+    <text x="35" y="184" class="body">• unknown root cause / impact preserved</text>
+    <text x="35" y="216" class="body">• advisory corrections only</text>
+    <text x="35" y="248" class="body">• approval requirements visible</text>
+    <text x="35" y="280" class="body">• Runtime Store recovery</text>
+    <text x="35" y="307" class="tiny">No execute, repair, schedule, or email action</text>
+  </g>
+
+  <path d="M248 1160v45h1317v-45" class="manual"/>
+  <rect x="720" y="1187" width="390" height="24" rx="12" fill="#fdfaff"/>
+  <text x="915" y="1204" class="connector-label">Run Full Investigation · direct fixed workflow</text>
+
+  <path d="M1180 708v38H248v122" class="dash"/>
+  <text x="755" y="737" class="connector-label">latest governed snapshot → Manual Refresh</text>
+  <path d="M1460 708v82h105v40" class="dash"/>
+  <text x="1588" y="775" class="connector-label">same sources → investigation</text>
+
+  <!-- Infrastructure and governance -->
+  <text x="45" y="1288" class="section">PLATFORM FOUNDATIONS</text>
+  <text x="405" y="1288" class="section-note">Governance, compute, deployment, and managed application state</text>
+
+  <g transform="translate(40 1308)">
+    <rect width="920" height="250" rx="15" class="card govern"/>
+    <use href="#icon-shield" x="24" y="24" width="58" height="58"/>
+    <text x="96" y="45" class="panel-title">Unity Catalog governance &amp; schema layout</text>
+    <text x="96" y="70" class="panel-body">Centralized access boundaries · lineage · analytics/PII isolation</text>
+    <g transform="translate(22 100)">
+      <g><rect width="102" height="100" rx="8" fill="#fff7ea" stroke="#f59e0b"/><text x="51" y="28" class="schema-name">source</text><text x="51" y="52" class="schema-role">internal</text><text x="51" y="76" class="schema-role">clean state</text></g>
+      <g transform="translate(111)"><rect width="102" height="100" rx="8" fill="#fff4e8" stroke="#f59e0b"/><text x="51" y="28" class="schema-name">bronze</text><text x="51" y="52" class="schema-role">internal</text><text x="51" y="76" class="schema-role">append-only</text></g>
+      <g transform="translate(222)"><rect width="102" height="100" rx="8" fill="#edf7ff" stroke="#3b82f6"/><text x="51" y="28" class="schema-name">staging</text><text x="51" y="52" class="schema-role">internal</text><text x="51" y="76" class="schema-role">views</text></g>
+      <g transform="translate(333)"><rect width="102" height="100" rx="8" fill="#f6edff" stroke="#c084fc"/><text x="51" y="28" class="schema-name">pii</text><text x="51" y="52" class="schema-role">restricted</text><text x="51" y="76" class="schema-role">identifiers</text></g>
+      <g transform="translate(444)"><rect width="102" height="100" rx="8" fill="#f6edff" stroke="#8b5cf6"/><text x="51" y="28" class="schema-name">snapshots</text><text x="51" y="52" class="schema-role">restricted</text><text x="51" y="76" class="schema-role">SCD2</text></g>
+      <g transform="translate(555)"><rect width="102" height="100" rx="8" fill="#effcf3" stroke="#4fb86b"/><text x="51" y="28" class="schema-name">silver</text><text x="51" y="52" class="schema-role">analytics</text><text x="51" y="76" class="schema-role">models</text></g>
+      <g transform="translate(666)"><rect width="102" height="100" rx="8" fill="#fff9dc" stroke="#eab308"/><text x="51" y="28" class="schema-name">gold</text><text x="51" y="52" class="schema-role">analytics</text><text x="51" y="76" class="schema-role">marts</text></g>
+      <g transform="translate(777)"><rect width="102" height="100" rx="8" fill="#eef6ff" stroke="#2563eb"/><text x="51" y="28" class="schema-name">observability</text><text x="51" y="52" class="schema-role">analytics</text><text x="51" y="76" class="schema-role">DQ evidence</text></g>
+    </g>
+  </g>
+
+  <g transform="translate(980 1308)">
+    <rect width="400" height="250" rx="15" class="card infra"/>
+    <use href="#icon-databricks" x="25" y="25" width="58" height="58"/>
+    <text x="96" y="46" class="panel-title">Serverless compute</text>
+    <text x="30" y="105" class="panel-body">• Jobs compute runs Python / Spark</text>
+    <text x="30" y="137" class="panel-body">• SQL Warehouse runs dbt + BI</text>
+    <text x="30" y="169" class="panel-body">• No customer cluster management</text>
+    <text x="30" y="201" class="panel-body">• Shared warehouse settings unchanged</text>
+  </g>
+
+  <g transform="translate(1400 1308)">
+    <rect width="400" height="250" rx="15" class="card infra"/>
+    <use href="#icon-databricks" x="25" y="25" width="58" height="58"/>
+    <text x="96" y="46" class="panel-title">Deployment</text>
+    <text x="30" y="105" class="panel-body">• Databricks Asset Bundles</text>
+    <text x="30" y="137" class="panel-body">• version-controlled Lakeflow Job</text>
+    <text x="30" y="169" class="panel-body">• Agent Bricks application runtime</text>
+    <text x="30" y="201" class="panel-body">• dedicated read-only app identity</text>
+  </g>
+
+  <g transform="translate(1820 1308)">
+    <rect width="540" height="250" rx="15" class="card infra"/>
+    <use href="#icon-app" x="25" y="25" width="58" height="58"/>
+    <text x="96" y="46" class="panel-title">Managed application services</text>
+    <rect x="28" y="100" width="150" height="72" rx="9" fill="#fff" stroke="#7d9bc0"/>
+    <text x="103" y="127" class="body" style="font-weight:800;text-anchor:middle">Session Store</text><text x="103" y="151" class="tiny" style="text-anchor:middle">conversation state</text>
+    <rect x="194" y="100" width="150" height="72" rx="9" fill="#fff" stroke="#7d9bc0"/>
+    <text x="269" y="127" class="body" style="font-weight:800;text-anchor:middle">Runtime Store</text><text x="269" y="151" class="tiny" style="text-anchor:middle">invocation recovery</text>
+    <rect x="360" y="100" width="150" height="72" rx="9" fill="#fff" stroke="#7d9bc0"/>
+    <text x="435" y="127" class="body" style="font-weight:800;text-anchor:middle">GPT OSS 120B</text><text x="435" y="151" class="tiny" style="text-anchor:middle">model service</text>
+    <text x="28" y="207" class="panel-body">MLflow trace metadata is recorded.</text>
+    <text x="28" y="232" class="tiny">Known span-upload networking limitation documented separately.</text>
+  </g>
+
+  <!-- Metrics and legend -->
+  <g transform="translate(40 1580)">
+    <rect width="1710" height="84" rx="14" class="card metric"/>
+    <text x="24" y="28" class="panel-title" style="font-size:16px">VALIDATED CLOUD RESULTS</text>
+    <g transform="translate(245 10)"><text x="85" y="28" class="metric-value">9 / 9</text><text x="85" y="52" class="metric-label">Lakeflow tasks passed</text></g>
+    <line x1="430" y1="14" x2="430" y2="69" stroke="#bbd5c4"/>
+    <g transform="translate(450 10)"><text x="110" y="28" class="metric-value">48</text><text x="110" y="52" class="metric-label">monitoring checks</text></g>
+    <line x1="680" y1="14" x2="680" y2="69" stroke="#bbd5c4"/>
+    <g transform="translate(700 10)"><text x="130" y="28" class="metric-value">44 PASS · 4 WARN · 0 FAIL</text><text x="130" y="52" class="metric-label">data-health result</text></g>
+    <line x1="980" y1="14" x2="980" y2="69" stroke="#bbd5c4"/>
+    <g transform="translate(1000 10)"><text x="105" y="28" class="metric-value">2</text><text x="105" y="52" class="metric-label">Genie investigations</text></g>
+    <line x1="1230" y1="14" x2="1230" y2="69" stroke="#bbd5c4"/>
+    <g transform="translate(1250 10)"><text x="120" y="28" class="metric-value">12</text><text x="120" y="52" class="metric-label">evidence-linked recommendations</text></g>
+  </g>
+  <g transform="translate(1770 1580)">
+    <rect width="590" height="84" rx="14" fill="#fff" stroke="#9cb3cf" stroke-width="1.5"/>
+    <text x="18" y="27" class="panel-title" style="font-size:16px">LEGEND</text>
+    <path d="M110 24h42" class="flow"/><text x="164" y="29" class="legend">scheduled data flow</text>
+    <path d="M325 24h42" class="manual"/><text x="379" y="29" class="legend">user-triggered</text>
+    <rect x="18" y="48" width="18" height="18" rx="4" fill="#effcf3" stroke="#4fb86b"/><text x="46" y="62" class="legend">governed analytics</text>
+    <rect x="220" y="48" width="18" height="18" rx="4" fill="#f7f1ff" stroke="#8b5cf6"/><text x="248" y="62" class="legend">DataOps agent</text>
+    <rect x="394" y="48" width="18" height="18" rx="4" fill="#fff8e8" stroke="#d97706"/><text x="422" y="62" class="legend">evidence boundary</text>
+  </g>
 </svg>
