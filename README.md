@@ -31,6 +31,41 @@ Portfolio materials:
 - [Data Engineer and AI Engineer resume bullets](docs/portfolio-resume-bullets.md)
 - [Live screenshot capture checklist](docs/portfolio-screenshot-checklist.md)
 
+## DataOps Command Center Demo
+
+The following screenshots were captured from the deployed Databricks App on October 30, 2026.
+Personal and operational identifiers have been redacted; no local mock fixtures are shown.
+
+### Daily Health Review
+
+The dashboard keeps execution health separate from data health: the Lakeflow run completed all
+9 tasks, while the independently retrieved monitoring snapshot reported 44 PASS, 4 WARN, and
+0 FAIL checks. The pipeline-to-monitoring association remains explicitly unverified.
+
+![Deployed Daily Health Review showing pipeline and observability status](images/dataops-demo/daily-health-review.png)
+
+### AI Investigation Report
+
+The bounded LangGraph investigation completed without executing corrective action. The report
+preserves uncertainty by leaving root cause and impact unknown when the retrieved evidence does
+not establish them.
+
+![Deployed AI investigation report summary](images/dataops-demo/ai-investigation-report.png)
+
+### Evidence-backed Recommendations
+
+Recommendations retain their priority, evidence, and verification context. They remain diagnostic
+or advisory; the Command Center does not provide an automatic repair action.
+
+![Deployed evidence-backed recommendations](images/dataops-demo/evidence-backed-recommendations.png)
+
+### Chat Markdown Table
+
+The read-only copilot can present the latest observability evidence in a structured Markdown table
+while keeping the underlying tool result available for inspection.
+
+![Deployed DataOps Copilot response with a Markdown observability table](images/dataops-demo/chat-markdown-table.png)
+
 ## Databricks V2 Architecture
 
 The current platform runs end to end on Databricks using Lakeflow Jobs,
