@@ -25,7 +25,13 @@ function report(completeness = "complete") {
       category: "quality",
       status: "WARN",
       name: "payments.failed_payment_rate",
-      details: { entity_name: "payments", metric_name: "failed_payment_rate", metric_rate: 0.12 },
+      details: {
+        entity_name: "payments",
+        metric_name: "failed_payment_rate",
+        metric_rate: 0.12,
+        previous_rate: 0.08,
+        quality_warning_delta: 0.02,
+      },
     }],
     genie_findings: [],
     source_errors: completeness === "complete" ? [] : [{ source: "observability", message: "Unavailable" }],
@@ -94,22 +100,24 @@ test("minimal summary preserves evidence references, approval flags, and unknown
 });
 
 test("recommendation display derives concise action titles without changing report data", () => {
-  const recommendation = report().recommendations[0];
+  const value = report();
+  const recommendation = value.recommendations[0];
   const original = structuredClone(recommendation);
-  const display = investigation.recommendationDisplay(recommendation);
+  const display = investigation.recommendationDisplay(recommendation, value.detected_issues[0]);
 
   assert.equal(display.title, "Compare quality metric baselines");
-  assert.match(display.summary, /cited evidence/);
+  assert.equal(display.summary, "Observed failed_payment_rate: 0.12; previous rate: 0.08; warning delta: 0.02.");
   assert.deepEqual(recommendation, original);
 });
 
 test("recommendation display distinguishes advisory remediation, verification, and unavailable evidence", () => {
-  const base = report().recommendations[0];
+  const value = report();
+  const base = value.recommendations[0];
   assert.deepEqual(
-    investigation.recommendationDisplay({ ...base, category: "proposed_remediation" }),
+    investigation.recommendationDisplay({ ...base, category: "proposed_remediation" }, value.detected_issues[0]),
     {
       title: "Prepare a reviewed quality correction",
-      summary: "Proceed only if diagnosis confirms a specific defect; this advisory does not execute a correction.",
+      summary: "Observed failed_payment_rate: 0.12; previous rate: 0.08; warning delta: 0.02.",
     },
   );
   assert.equal(
@@ -131,9 +139,103 @@ test("recommendation display falls back safely without reflecting untrusted acti
   });
 
   assert.equal(fallback.title, "Investigate cited evidence");
-  assert.match(fallback.summary, /without assigning unsupported cause or impact/);
+  assert.match(fallback.summary, /Measurements were not available/);
   assert.equal(fallback.title.includes("<img"), false);
   assert.equal(globalThis.pwned, undefined);
+});
+
+test("recommendation summaries use complete freshness and volume measurements", () => {
+  const base = report().recommendations[0];
+  assert.equal(
+    investigation.recommendationDisplay(
+      { ...base, issue_id: "observability.freshness.messages" },
+      { details: { freshness_delay_hours: 26.5, freshness_warning_threshold_hours: 24 } },
+    ).summary,
+    "Observed freshness delay: 26.5 hours; warning threshold: 24 hours.",
+  );
+  assert.equal(
+    investigation.recommendationDisplay(
+      { ...base, issue_id: "observability.row_counts.messages" },
+      { details: { row_count: 1200, rolling_7_day_average: 1500 } },
+    ).summary,
+    "Observed row count: 1,200; rolling 7-day average: 1,500.",
+  );
+});
+
+test("recommendation summaries handle partial, malformed, and missing measurements neutrally", () => {
+  const base = report().recommendations[0];
+  assert.equal(
+    investigation.recommendationDisplay(
+      { ...base, issue_id: "observability.freshness.messages" },
+      { details: { freshness_delay_hours: 26.5 } },
+    ).summary,
+    "Observed freshness delay: 26.5 hours; comparison threshold unavailable.",
+  );
+  assert.match(
+    investigation.recommendationDisplay(
+      { ...base, issue_id: "observability.row_counts.messages" },
+      { details: { row_count: "not-a-number", rolling_7_day_average: "<script>alert(1)</script>" } },
+    ).summary,
+    /Measurements were not available/,
+  );
+  assert.match(investigation.recommendationDisplay(base, null).summary, /Measurements were not available/);
+  assert.equal(globalThis.pwned, undefined);
+});
+
+test("long structured labels remain data and malformed scalar types are not measurements", () => {
+  const base = report().recommendations[0];
+  const metric = `metric_${"very_long_".repeat(300)}`;
+  const display = investigation.recommendationDisplay(base, {
+    details: { metric_name: metric, metric_rate: 0.125, previous_rate: 0.1 },
+  });
+
+  assert.match(display.summary, /^Observed metric_/);
+  assert.match(display.summary, /0\.125; previous rate: 0\.1\.$/);
+  assert.match(
+    investigation.recommendationDisplay(base, {
+      details: { metric_name: "bad", metric_rate: true, previous_rate: { value: 1 } },
+    }).summary,
+    /Measurements were not available/,
+  );
+});
+
+test("minimal summary associates recommendation display evidence without mutating the report", () => {
+  const value = report();
+  const original = structuredClone(value);
+  const recommendation = investigation.minimalSummary(value).recommendations[0];
+
+  assert.equal(recommendation.issue.reference, "detected_issues[0]");
+  assert.match(investigation.recommendationDisplay(recommendation, recommendation.issue).summary, /0.12/);
+  assert.deepEqual(value, original);
+});
+
+test("recommendations match the cited issue when one entity has multiple findings", () => {
+  const value = report();
+  value.detected_issues = [
+    {
+      source: "observability",
+      category: "quality",
+      status: "WARN",
+      name: "payments.refund_rate",
+      details: { entity_name: "payments", metric_name: "refund_rate", metric_rate: 0.03, previous_rate: 0.02 },
+    },
+    {
+      source: "observability",
+      category: "quality",
+      status: "WARN",
+      name: "payments.failed_payment_rate",
+      details: { entity_name: "payments", metric_name: "failed_payment_rate", metric_rate: 0.12, previous_rate: 0.08 },
+    },
+  ];
+  value.recommendations[0].evidence_refs = ["detected_issues[1]"];
+
+  const recommendation = investigation.minimalSummary(value).recommendations[0];
+  const display = investigation.recommendationDisplay(recommendation, recommendation.issue);
+
+  assert.equal(recommendation.issue.reference, "detected_issues[1]");
+  assert.equal(recommendation.issue.metric, "failed_payment_rate");
+  assert.match(display.summary, /failed_payment_rate: 0\.12/);
+  assert.equal(display.summary.includes("refund_rate"), false);
 });
 
 test("partial and unavailable reports are never labeled successful", () => {

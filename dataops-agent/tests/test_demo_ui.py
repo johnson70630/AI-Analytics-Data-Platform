@@ -173,12 +173,13 @@ def test_demo_ui_routes(monkeypatch):
     assert 'id="runtime-transport"' in index.text
     assert 'id="runtime-session"' in index.text
     assert 'id="runtime-model"' in index.text
-    assert 'styles.css?v=14' in index.text
+    assert 'styles.css?v=15' in index.text
     assert 'markdown-layout.js?v=1' in index.text
     assert 'conversations.js?v=1' in index.text
-    assert 'investigation.js?v=3' in index.text
+    assert 'event-console.js?v=1' in index.text
+    assert 'investigation.js?v=4' in index.text
     assert 'workspace.js?v=1' in index.text
-    assert 'app.js?v=14' in index.text
+    assert 'app.js?v=15' in index.text
     assert '<body data-workspace-view="chat">' in index.text
     assert 'id="health-review-view"' in index.text
     assert 'id="health-view-tab"' in index.text
@@ -209,10 +210,16 @@ def test_demo_ui_routes(monkeypatch):
     assert investigation_script.headers["cache-control"] == "no-store"
     assert "function validateReport(report)" in investigation_script.text
     assert "function canStart(" in investigation_script.text
-    assert "function recommendationDisplay(recommendation)" in investigation_script.text
+    assert "function recommendationDisplay(recommendation, issue = null)" in investigation_script.text
+    assert "function recommendationMeasurementSummary(topic, issue)" in investigation_script.text
     assert "function fullViewModel(report)" in investigation_script.text
     assert "function serializeRecoveryState(" in investigation_script.text
     assert "function parseRecoveryState(" in investigation_script.text
+    event_console_script = client.get("/ui-assets/event-console.js")
+    assert event_console_script.status_code == 200
+    assert event_console_script.headers["cache-control"] == "no-store"
+    assert "function appendEvent(events, event" in event_console_script.text
+    assert "function detailPayload(event)" in event_console_script.text
     app_script = client.get("/ui-assets/app.js")
     assert app_script.status_code == 200
     assert app_script.headers["cache-control"] == "no-store"

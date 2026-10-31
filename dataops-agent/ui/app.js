@@ -135,10 +135,12 @@ const CONVERSATION_INDEX_STORAGE_KEY = "dataops-conversation-index-v1";
 const INVESTIGATION_RECOVERY_STORAGE_KEY = "dataops-active-investigation-v1";
 const conversationIndex = window.DataOpsConversationIndex;
 const investigation = window.DataOpsInvestigation;
+const eventConsole = window.DataOpsEventConsole;
 const workspaceController = window.DataOpsWorkspace;
 
 if (!conversationIndex) throw new Error("Conversation index helpers failed to load.");
 if (!investigation) throw new Error("Investigation helpers failed to load.");
+if (!eventConsole) throw new Error("Evidence Console helpers failed to load.");
 
 function newSessionId() {
   return crypto.randomUUID();
@@ -366,6 +368,7 @@ function eventCategory(type) {
   if (value.startsWith("memory")) return "memory";
   if (
     value.startsWith("background") ||
+    value.startsWith("investigation") ||
     value.startsWith("model") ||
     value.startsWith("run") ||
     ["response", "delta", "message", "interrupt", "runtime.config"].includes(value)
@@ -393,7 +396,7 @@ function eventRunId(payload) {
 }
 
 function addEvent(type, payload) {
-  state.events.unshift({
+  const event = {
     id: `evt-${(state.eventSeq += 1)}`,
     type,
     category: eventCategory(type),
@@ -401,9 +404,10 @@ function addEvent(type, payload) {
     runId: eventRunId(payload),
     payload,
     at: new Date(),
-  });
-  state.events = state.events.slice(0, 80);
-  renderEvents();
+  };
+  const outcome = eventConsole.appendEvent(state.events, event, { limit: 80 });
+  state.events = outcome.events;
+  renderEvents({ announce: outcome.announce });
 }
 
 function eventEmpty() {
@@ -420,10 +424,14 @@ function renderEventDetail() {
   const event = state.events.find((item) => item.id === state.selectedEventId);
   const show = state.eventView === "list" && Boolean(event);
   elements.eventDetail.hidden = !show;
-  if (show) elements.eventDetailJson.innerHTML = highlightJson(event.payload);
+  if (show) elements.eventDetailJson.innerHTML = highlightJson(eventConsole.detailPayload(event));
 }
 
-function renderEvents() {
+function renderEvents({ announce = true } = {}) {
+  if (!announce) elements.eventLog.setAttribute("aria-live", "off");
+  const restoreAnnouncements = () => {
+    if (!announce) queueMicrotask(() => elements.eventLog.setAttribute("aria-live", "polite"));
+  };
   const listView = state.eventView === "list";
   elements.eventFilters.hidden = !listView;
   elements.eventLog.classList.toggle("list-view", listView);
@@ -437,6 +445,7 @@ function renderEvents() {
   if (!events.length) {
     elements.eventLog.append(eventEmpty());
     renderEventDetail();
+    restoreAnnouncements();
     return;
   }
 
@@ -452,13 +461,38 @@ function renderEvents() {
       const time = document.createElement("span");
       time.className = "event-time";
       time.textContent = event.at.toLocaleTimeString();
+      const details = document.createElement("details");
+      details.className = "event-entry-details";
+      const detailsSummary = document.createElement("summary");
+      detailsSummary.textContent = event.polling ? "Polling details and retained raw events" : "Event payload";
       const body = document.createElement("pre");
-      body.innerHTML = highlightJson(event.payload);
+      body.innerHTML = highlightJson(eventConsole.detailPayload(event));
+      details.append(detailsSummary, body);
       header.append(name, time);
-      entry.append(header, body);
+      if (event.polling) {
+        const facts = document.createElement("dl");
+        facts.className = "event-poll-facts";
+        [
+          ["Status", event.polling.currentStatus],
+          ["Polls", event.polling.count],
+          ["First", new Date(event.polling.firstAt).toLocaleTimeString()],
+          ["Last", new Date(event.polling.lastAt).toLocaleTimeString()],
+          ["Invocation", event.runId],
+        ].forEach(([label, value]) => {
+          const term = document.createElement("dt");
+          term.textContent = label;
+          const description = document.createElement("dd");
+          description.textContent = String(value || "unavailable");
+          facts.append(term, description);
+        });
+        entry.append(header, facts, details);
+      } else {
+        entry.append(header, details);
+      }
       elements.eventLog.append(entry);
     }
     renderEventDetail();
+    restoreAnnouncements();
     return;
   }
 
@@ -492,6 +526,7 @@ function renderEvents() {
     elements.eventLog.append(row);
   }
   renderEventDetail();
+  restoreAnnouncements();
 }
 
 function setEventView(view) {
@@ -1666,10 +1701,10 @@ function reportCardHeader(titleText, status) {
   return head;
 }
 
-function renderRecommendation(recommendation) {
+function renderRecommendation(recommendation, issue = null) {
   const article = document.createElement("article");
   article.className = "investigation-recommendation";
-  const display = investigation.recommendationDisplay(recommendation);
+  const display = investigation.recommendationDisplay(recommendation, issue || recommendation.issue);
   const head = document.createElement("div");
   head.className = "health-issue-top recommendation-heading";
   const title = document.createElement("strong");
@@ -1728,16 +1763,16 @@ function renderRecommendation(recommendation) {
   verificationDetails.className = "recommendation-details";
   const verificationSummary = document.createElement("summary");
   verificationSummary.textContent = "Technical and verification details";
-  const issue = document.createElement("p");
-  issue.className = "recommendation-issue-id";
-  issue.textContent = `Issue: ${recommendation.issue_id}`;
+  const issueIdentifier = document.createElement("p");
+  issueIdentifier.className = "recommendation-issue-id";
+  issueIdentifier.textContent = `Issue: ${recommendation.issue_id}`;
   const steps = document.createElement("ol");
   recommendation.verification_steps.forEach((step) => {
     const item = document.createElement("li");
     item.textContent = step;
     steps.append(item);
   });
-  verificationDetails.append(verificationSummary, issue, steps);
+  verificationDetails.append(verificationSummary, issueIdentifier, steps);
   article.append(
     head,
     category,
@@ -1895,7 +1930,7 @@ function renderReportRecommendations(view) {
       : "General or source-availability guidance";
     section.append(heading);
     group.recommendations.forEach((recommendation) => {
-      section.append(renderRecommendation(recommendation));
+      section.append(renderRecommendation(recommendation, group.issue));
     });
     elements.reportRecommendationGroups.append(section);
   });
