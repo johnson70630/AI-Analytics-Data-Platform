@@ -76,6 +76,16 @@
 
   function minimalSummary(report) {
     validateReport(report);
+    const issues = report.detected_issues.map((issue, index) => ({
+      reference: issueReference(index),
+      category: issue.category,
+      status: String(issue.status || "UNKNOWN"),
+      name: issue.name,
+      entity: issue.details?.entity_name || null,
+      metric: issue.details?.metric_name || null,
+      details: issue.details || {},
+    }));
+    const issueByReference = new Map(issues.map((issue) => [issue.reference, issue]));
     return {
       schema_version: report.schema_version,
       completeness: report.investigation_completeness,
@@ -86,16 +96,21 @@
       genie_finding_count: report.genie_findings.length,
       root_cause: report.root_cause,
       impact: report.impact,
-      recommendations: report.recommendations.slice(0, 3).map((recommendation) => ({
-        issue_id: recommendation.issue_id,
-        priority: recommendation.priority,
-        category: recommendation.category,
-        action: recommendation.action,
-        rationale: recommendation.rationale,
-        evidence_refs: [...(recommendation.evidence_refs || [])],
-        requires_human_approval: Boolean(recommendation.requires_human_approval),
-        verification_steps: [...(recommendation.verification_steps || [])],
-      })),
+      recommendations: report.recommendations.slice(0, 3).map((recommendation) => {
+        const evidenceRefs = [...(recommendation.evidence_refs || [])];
+        const matchedReference = evidenceRefs.find((reference) => issueByReference.has(reference));
+        return {
+          issue_id: recommendation.issue_id,
+          priority: recommendation.priority,
+          category: recommendation.category,
+          action: recommendation.action,
+          rationale: recommendation.rationale,
+          evidence_refs: evidenceRefs,
+          requires_human_approval: Boolean(recommendation.requires_human_approval),
+          verification_steps: [...(recommendation.verification_steps || [])],
+          issue: matchedReference ? issueByReference.get(matchedReference) : null,
+        };
+      }),
       recommendation_count: Number(report.recommendation_summary.recommendation_count || 0),
     };
   }
@@ -115,7 +130,69 @@
     return "general";
   }
 
-  function recommendationDisplay(recommendation) {
+  function numeric(value) {
+    if (value == null || value === "") return null;
+    if (typeof value === "number") return Number.isFinite(value) ? value : null;
+    if (typeof value !== "string" || !/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim())) return null;
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function displayNumber(value) {
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(value);
+  }
+
+  function recommendationMeasurementSummary(topic, issue) {
+    const details = issue?.details && typeof issue.details === "object" ? issue.details : {};
+    if (topic === "freshness") {
+      const delay = numeric(details.freshness_delay_hours);
+      const threshold = numeric(details.freshness_warning_threshold_hours);
+      if (delay != null && threshold != null) {
+        return `Observed freshness delay: ${displayNumber(delay)} hours; warning threshold: ${displayNumber(threshold)} hours.`;
+      }
+      if (delay != null) return `Observed freshness delay: ${displayNumber(delay)} hours; comparison threshold unavailable.`;
+      if (threshold != null) return `Freshness delay unavailable; warning threshold: ${displayNumber(threshold)} hours.`;
+    }
+    if (topic === "row_counts") {
+      const observed = numeric(details.row_count);
+      const rolling = numeric(details.rolling_7_day_average);
+      const previous = numeric(details.previous_day_row_count);
+      if (observed != null && rolling != null) {
+        return `Observed row count: ${displayNumber(observed)}; rolling 7-day average: ${displayNumber(rolling)}.`;
+      }
+      if (observed != null && previous != null) {
+        return `Observed row count: ${displayNumber(observed)}; previous-day count: ${displayNumber(previous)}.`;
+      }
+      if (observed != null) return `Observed row count: ${displayNumber(observed)}; historical baseline unavailable.`;
+    }
+    if (topic === "quality") {
+      const metric = String(details.metric_name || issue?.metric || issue?.name || "quality metric");
+      const observed = numeric(details.metric_rate);
+      const previous = numeric(details.previous_rate);
+      const rolling = numeric(details.rolling_7_day_rate);
+      const threshold = numeric(details.quality_warning_delta);
+      const comparisons = [];
+      if (previous != null) comparisons.push(`previous rate: ${displayNumber(previous)}`);
+      else if (rolling != null) comparisons.push(`rolling 7-day rate: ${displayNumber(rolling)}`);
+      if (threshold != null) comparisons.push(`warning delta: ${displayNumber(threshold)}`);
+      if (observed != null && comparisons.length) {
+        return `Observed ${metric}: ${displayNumber(observed)}; ${comparisons.join("; ")}.`;
+      }
+      if (observed != null) return `Observed ${metric}: ${displayNumber(observed)}; comparison baseline unavailable.`;
+    }
+    if (topic === "reconciliation") {
+      const source = numeric(details.source_count);
+      const target = numeric(details.target_count);
+      const difference = numeric(details.difference);
+      if (source != null && target != null) {
+        const suffix = difference == null ? "" : `; difference: ${displayNumber(difference)}`;
+        return `Observed source count: ${displayNumber(source)}; target count: ${displayNumber(target)}${suffix}.`;
+      }
+    }
+    return null;
+  }
+
+  function recommendationDisplay(recommendation, issue = null) {
     const category = String(recommendation?.category || "diagnostic");
     const topic = recommendationTopic(recommendation);
     const titles = {
@@ -150,15 +227,13 @@
     const titleSet = titles[category] || titles.diagnostic;
     const title = titleSet[topic] || titleSet.general || titles.diagnostic.general;
 
-    let summary = "Use the cited evidence to investigate the finding without assigning unsupported cause or impact.";
+    const measurementSummary = recommendationMeasurementSummary(topic, issue);
+    let summary = measurementSummary
+      || "Measurements were not available in the cited structured evidence; review the referenced finding before acting.";
     if (topic === "jobs_source" || topic === "monitoring_source") {
       summary = "Restore the cited read-only evidence before interpreting the affected health signal.";
     } else if (topic === "genie") {
       summary = "Treat the historical context as incomplete until its availability and result metadata are verified.";
-    } else if (category === "proposed_remediation") {
-      summary = "Proceed only if diagnosis confirms a specific defect; this advisory does not execute a correction.";
-    } else if (category === "verification") {
-      summary = "After an approved external change, rerun the affected check and compare it with the cited evidence.";
     }
     return { title, summary };
   }

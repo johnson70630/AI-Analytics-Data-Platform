@@ -1457,6 +1457,43 @@ h2 {
   white-space: pre-wrap;
 }
 
+.event-entry-details > summary {
+  padding: 7px 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.event-entry-details > summary:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.event-poll-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 10px;
+  margin: 0 0 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--surface-muted);
+  font-size: 11px;
+}
+
+.event-poll-facts dt {
+  color: var(--ink-faint);
+}
+
+.event-poll-facts dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
 /* Basic JSON syntax highlighting for event payloads. */
 .json-key { color: var(--accent-deep); }
 .json-str { color: var(--success); }
